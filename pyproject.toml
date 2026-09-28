@@ -1,0 +1,24 @@
+[project]
+name = "dialectic-bizdoctor"
+version = "0.1.0"
+description = "対立仮説検証による自律型経営診断システム"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.50",
+    "pandas>=2.0",
+    "plotly>=5.20",
+    "graphviz>=0.20",
+    "pydantic>=2.0",
+    "google-genai>=1.0",
+    "openpyxl>=3.1",
+    "python-dotenv>=1.0",
+    "langgraph>=1.2",
+    "langgraph-checkpoint-sqlite>=3.1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "src/ui"]

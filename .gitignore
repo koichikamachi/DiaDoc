@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.env
+.env.*
+!.env.example
+*.env
+secrets/
+*.key
+*.pem
+service-account*.json
+credentials*.json
+client_secret*.json
+desktop.ini
+Thumbs.db
+.DS_Store
+
+# 論争の途中状態（分析回次ごとのチェックポイント）
+data/**/checkpoints.sqlite*
+data/**/debate_trace.jsonl
