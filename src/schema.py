@@ -228,6 +228,44 @@ class DebateMessage(BaseModel):
     at: str = ""                                                 # 発言の時刻（ISO 8601。記録が古いものは空）
 
 
+# ---------------------------------------------------------------------------
+# 実質化の調整（帳簿の額に人間が加える修正。例：株式の含み益、仮払金の減額）
+# ---------------------------------------------------------------------------
+BSBlockName = Literal["現金預金", "その他の流動資産", "有形・無形固定資産", "投資その他の資産", "流動負債", "固定負債"]
+ASSET_BLOCKS: tuple[str, ...] = ("現金預金", "その他の流動資産", "有形・無形固定資産", "投資その他の資産")
+LIABILITY_BLOCKS: tuple[str, ...] = ("流動負債", "固定負債")
+
+
+class Adjustment(BaseModel):
+    """実質BSへの調整一件（千円）。資産か負債の区画を増減させ、差額はすべて純資産に効く。
+
+    origin="開示" は決算書に書かれた数字からプログラムが作る調整（上場会社の評価差額金など）。
+    origin="人間" は介入として入力された調整。税効果は考慮せず、入力された額をそのまま使う。
+    """
+
+    id: str
+    account: str                 # 科目名（表示用）
+    key: str | None = None       # 標準科目のキー（分かれば）
+    block: BSBlockName
+    amount: int                  # 区画を増やすなら正、減らすなら負
+    note: str = ""               # 根拠
+    origin: Literal["人間", "開示"] = "人間"
+    at: str | None = None
+    message_id: str | None = None   # 論争に書き込んだ介入の発言ID
+
+    @property
+    def is_asset(self) -> bool:
+        return self.block in ASSET_BLOCKS
+
+    @property
+    def equity_effect(self) -> int:
+        return self.amount if self.is_asset else -self.amount
+
+    def describe(self) -> str:
+        sign = "+" if self.amount >= 0 else "−"
+        return f"{self.account} {sign}{abs(self.amount):,}千円（{self.block}）" + (f"：{self.note}" if self.note else "")
+
+
 def stamp() -> str:
     """発言の時刻。作られた時点でだけ付ける（古い記録を読み戻したときに現在時刻で埋めない）。"""
     from datetime import datetime

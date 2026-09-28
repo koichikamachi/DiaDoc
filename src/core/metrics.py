@@ -1,14 +1,17 @@
 """財務データから指標を計算する（決定論的）。
 
-名目BS（原資料どおり）と実質本業BS（株式含み益を控除）の二つの見方を返す。
-原資料の数値は加工せず、実質本業BSは補助計算として別に示す（CLAUDE.md 6.9）。
+名目BS（帳簿どおり）と実質BS（帳簿＋実質化の調整）の二つの見方を返す。調整は、決算書の開示から作れるもの
+（上場会社の評価差額金）と、人間が介入で入れるもの（株式・土地の含み損益、仮払金の減額など）だけ。
+原資料の数値は加工しない（CLAUDE.md 6.9）。
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from schema import CashBase, CausalBridge, CountedBridge, Financials, Monitor
+from collections.abc import Sequence
+
+from schema import ASSET_BLOCKS, Adjustment, CashBase, CausalBridge, CountedBridge, Financials, Monitor
 
 
 def _v(fin: Financials, key: str, period: str = "cur") -> int:
@@ -29,22 +32,47 @@ def unrealized_gain_pretax(fin: Financials) -> int | None:
     return _v(fin, "oci") + dtl.cur
 
 
-def balance_sheet(fin: Financials, mode: str) -> dict:
+def disclosed_adjustments(fin: Financials) -> list[Adjustment]:
+    """決算書に書かれた数字だけで作れる調整。
+
+    その他有価証券を時価評価している会社（評価差額金がある会社）だけが対象。中小企業の多くは株式を
+    取得原価のまま計上しており、外からは含み損益が分からないので、ここでは何もしない（人間の介入を待つ）。
+    """
+    gain = unrealized_gain_pretax(fin)
+    if gain is None:
+        raise ValueError("含み益に係る繰延税金負債（税効果注記）が未取得のため、実質BSを計算できません")
+    if not gain:
+        return []
+    dta = fin.supplementary.get("dta_netted")
+    out = [Adjustment(id="D1", account="投資有価証券（時価評価の含み益）", key="inv", block="投資その他の資産",
+                      amount=-gain, origin="開示", note="評価差額金＋それに係る繰延税金負債（税効果注記）")]
+    if dta and dta.cur:
+        out.append(Adjustment(id="D2", account="繰延税金資産（相殺されていた分）", block="投資その他の資産",
+                              amount=dta.cur, origin="開示", note="繰延税金負債と相殺表示されていた額を戻す"))
+    if _v(fin, "dtl"):
+        out.append(Adjustment(id="D3", account="繰延税金負債", key="dtl", block="固定負債", amount=-_v(fin, "dtl"),
+                              origin="開示", note="含み益を除くので、それに係る税効果も除く"))
+    return out
+
+
+def real_adjustments(fin: Financials, extra: Sequence[Adjustment] = ()) -> list[Adjustment]:
+    return disclosed_adjustments(fin) + list(extra)
+
+
+def balance_sheet(fin: Financials, mode: str, extra: Sequence[Adjustment] = ()) -> dict:
+    """名目（帳簿どおり）か実質（帳簿＋調整）の貸借対照表。extra は人間が入力した調整。"""
+    ta, tl, inv = _v(fin, "ta"), _v(fin, "tl"), _v(fin, "inv")
     if mode == "nominal":
-        ta, tl, inv, na = _v(fin, "ta"), _v(fin, "tl"), _v(fin, "inv"), _v(fin, "tna")
-        note = "原資料どおり（その他有価証券は時価評価、税効果会計適用）"
+        na = _v(fin, "tna")
+        note = "帳簿（原資料）どおり"
     else:
-        gain = unrealized_gain_pretax(fin)
-        if gain is None:
-            raise ValueError("含み益に係る繰延税金負債（税効果注記）が未取得のため、実質本業BSを計算できません")
-        dta = fin.supplementary.get("dta_netted")
-        dta_v = dta.cur if dta else 0
-        ta = _v(fin, "ta") - gain + dta_v
-        tl = _v(fin, "tl") - _v(fin, "dtl")
-        inv = _v(fin, "inv") - gain
-        na = ta - tl
-        note = (f"推計：含み益（税効果前）{gain:,}千円を資産から控除し、対応する繰延税金負債を除去、"
-                "相殺されていた繰延税金資産を資産に戻した。純資産は株主資本合計に一致する")
+        adj = real_adjustments(fin, extra)
+        ta += sum(a.amount for a in adj if a.is_asset)
+        tl += sum(a.amount for a in adj if not a.is_asset)
+        inv += sum(a.amount for a in adj if a.key == "inv")
+        na = ta - tl if adj else _v(fin, "tna")
+        note = ("推計：帳簿に次の調整を加えた（税効果は入力どおり）── " + "／".join(a.describe() for a in adj)
+                if adj else "調整なし（帳簿どおり。株式などは取得原価で計上されている前提）")
     return {
         "総資産": ta, "負債": tl, "純資産": na, "投資有価証券": inv, "事業資産": ta - inv,
         "自己資本比率": na / ta if ta else 0.0,
@@ -55,67 +83,86 @@ def balance_sheet(fin: Financials, mode: str) -> dict:
 
 @dataclass(frozen=True)
 class BSBlock:
-    """比例縮尺の貸借対照表の一区画（千円）。side は "資産" か "負債・純資産"。"""
+    """比例縮尺の貸借対照表の一区画（千円）。side は "資産" か "負債・純資産"。
+
+    adjust が空でない区画は調整の部分（斜線）。名目の列では「実質で除く部分」、実質の列では「実質で加わる部分」。
+    """
 
     side: str
     kind: str        # 資産 / 負債 / 純資産
     label: str
     amount: int
-    gain_related: bool = False   # 株式の含み益に由来する区画（名目にだけある）
+    adjust: str = ""
 
 
-def bs_blocks(fin: Financials, mode: str) -> list[BSBlock]:
-    """貸借対照表を区画に分ける。区画の合計は balance_sheet() の総資産・負債＋純資産に一致する。
+def _book_blocks(fin: Financials) -> dict[str, int]:
+    tca, cash, tinv = _v(fin, "tca"), _v(fin, "cash"), _v(fin, "tinv")
+    return {"現金預金": cash, "その他の流動資産": tca - cash, "有形・無形固定資産": _v(fin, "ta") - tca - tinv,
+            "投資その他の資産": tinv, "流動負債": _v(fin, "tcl"), "固定負債": _v(fin, "tl") - _v(fin, "tcl"),
+            "純資産": _v(fin, "tna")}
 
-    名目では含み益・繰延税金負債・評価差額金を別区画にして、実質で何が消えるかを見せる。
+
+def bs_blocks(fin: Financials, mode: str, extra: Sequence[Adjustment] = ()) -> list[BSBlock]:
+    """貸借対照表を区画に分ける。帳簿の区画はそのまま（仮払金なども計上されている区画に入れたまま）。
+
+    調整は区画ごとに、減らす分は名目の列に斜線で、増やす分は実質の列に斜線で重ねる。
+    斜線を除いた部分（土台）は名目と実質で同じ高さになり、何が消え何が加わったかが見比べられる。
     """
-    bs = balance_sheet(fin, mode)
-    ta, tca, tinv, cash = bs["総資産"], _v(fin, "tca"), _v(fin, "tinv"), _v(fin, "cash")
-    tcl, tltl, dtl, oci = _v(fin, "tcl"), _v(fin, "tltl"), _v(fin, "dtl"), _v(fin, "oci")
-    gain = unrealized_gain_pretax(fin) or 0
-    if mode == "nominal":
-        inv_other = tinv - gain
-        fixed = ta - tca - tinv
-    else:
-        dta = fin.supplementary.get("dta_netted")
-        inv_other = tinv - gain + (dta.cur if dta else 0)
-        fixed = ta - tca - inv_other
-    blocks = [
-        BSBlock("資産", "資産", "現金預金", cash),
-        BSBlock("資産", "資産", "その他の流動資産", tca - cash),
-        BSBlock("資産", "資産", "有形・無形固定資産", fixed),
-        BSBlock("資産", "資産", "投資その他の資産", inv_other),
-    ]
-    if mode == "nominal" and gain:
-        blocks.append(BSBlock("資産", "資産", "株式の含み益", gain, True))
-    blocks.append(BSBlock("負債・純資産", "負債", "流動負債", tcl))
-    if mode == "nominal":
-        blocks.append(BSBlock("負債・純資産", "負債", "固定負債",
-                              tltl - (dtl if gain else 0)))
-        if gain and dtl:
-            blocks.append(BSBlock("負債・純資産", "負債", "繰延税金負債", dtl, True))
-        na = bs["純資産"]
-        if gain and oci:
-            blocks.append(BSBlock("負債・純資産", "純資産", "純資産", na - oci))
-            blocks.append(BSBlock("負債・純資産", "純資産", "評価差額金", oci, True))
-        else:
-            blocks.append(BSBlock("負債・純資産", "純資産", "純資産", na))
-    else:
-        blocks.append(BSBlock("負債・純資産", "負債", "固定負債", bs["負債"] - tcl))
-        blocks.append(BSBlock("負債・純資産", "純資産", "純資産", bs["純資産"]))
-    return [b for b in blocks if b.amount != 0 or b.kind == "純資産"]
+    book = _book_blocks(fin)
+    adj = real_adjustments(fin, extra)
+    eq = [a.equity_effect for a in adj]
+    parts: dict[str, list[tuple[str, int]]] = {k: [] for k in book}
+    for a in adj:
+        parts[a.block].append((a.account, a.amount))
+    if adj:
+        parts["純資産"] = [("調整による純資産の" + ("増加" if sum(eq) >= 0 else "減少"), sum(eq))]
+    out: list[BSBlock] = []
+    caps: list[BSBlock] = []
+    for name, amount in book.items():
+        side = "資産" if name in ASSET_BLOCKS else "負債・純資産"
+        kind = "資産" if side == "資産" else ("純資産" if name == "純資産" else "負債")
+        neg = [(n, d) for n, d in parts[name] if d < 0]
+        pos = [(n, d) for n, d in parts[name] if d > 0]
+        out.append(BSBlock(side, kind, name, amount + sum(d for _, d in neg)))
+        for n, d in (neg if mode == "nominal" else pos):
+            caps.append(BSBlock(side, kind, n, abs(d), "除く" if d < 0 else "加える"))
+    return [b for b in out if b.amount != 0 or b.kind == "純資産"] + caps
 
 
-# 実質化で本来検討すべき中小企業の科目（いまの実質本業BSには反映していない）
+# 実質化で確かめたい科目。図には帳簿どおり（計上されている区画のまま）入れ、ここで確かめる点を示す
 WATCH_ITEMS = (
-    ("suspense", "仮払金", "中身と回収見込みの確認が要る（資産性がなければ減額）"),
-    ("officer_loan", "役員借入金", "返済を求めない約束があれば、実質は資本に近い"),
-    ("ins_reserve", "保険積立金", "帳簿の額と解約返戻金の差を確かめる"),
+    ("inv", "投資有価証券", "投資その他の資産"),
+    ("aff", "関係会社株式", "投資その他の資産"),
+    ("land", "土地", "有形・無形固定資産"),
+    ("suspense", "仮払金", "その他の流動資産"),
+    ("ins_reserve", "保険積立金", "投資その他の資産"),
+    ("officer_loan", "役員借入金", "固定負債"),
 )
+_WHY = {
+    "inv": "取得原価で計上されている前提で扱っている。銘柄と時価が分かれば、含み益（＋）・含み損（−）を調整として入力する",
+    "aff": "取得原価のまま。関係会社の財政状態が悪ければ、実質価値との差（−）を調整として入力する",
+    "land": "取得原価のまま。路線価や鑑定で時価が分かれば、含み益・含み損を調整として入力する",
+    "suspense": "中身と精算の見込みを確認する。資産性がなければ減額（−）を調整として入力する",
+    "ins_reserve": "帳簿の額と解約返戻金の差を確かめ、差額を調整として入力する",
+    "officer_loan": "負債のまま扱う。資本とみなすのは金融機関の見方で、実際には劣後化や債務免除などの手続きが要る。"
+                    "手続きがあった時点で調整を入力する",
+}
 
 
-def watch_items(fin: Financials) -> list[tuple[str, int, str]]:
-    return [(label, fin.value(key), why) for key, label, why in WATCH_ITEMS if fin.value(key)]
+def watch_items(fin: Financials) -> list[tuple[str, str, int, str, str]]:
+    """(key, 科目名, 帳簿の額, 区画, 確かめること)。評価差額金の開示がある会社の株式は、自動の調整済みと書く。"""
+    gain = unrealized_gain_pretax(fin)
+    out = []
+    for key, label, block in WATCH_ITEMS:
+        amount = fin.value(key)
+        if not amount:
+            continue
+        why = _WHY[key]
+        if key == "inv" and gain:
+            why = (f"決算書に評価差額金 {_v(fin, 'oci'):,}千円の開示がある（時価評価済み）。"
+                   "含み益を除く調整をプログラムが自動で入れている")
+        out.append((key, label, amount, block, why))
+    return out
 
 
 def core_metrics(fin: Financials) -> dict:

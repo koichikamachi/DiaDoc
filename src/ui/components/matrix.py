@@ -26,10 +26,20 @@ def _oku(v: float) -> str:
     return f"{v / 1e5:,.1f}億円"
 
 
-def _ratio_frame(fin: Financials, mode: str, benches: list[dict]) -> pd.DataFrame:
+def _unit(fin: Financials) -> tuple[float, str]:
+    """図の単位。総資産50億円未満の会社は百万円、それ以上は億円（千円からの割り算の値と単位名）。"""
+    return (1e3, "百万円") if (fin.value("ta") or 0) < 5_000_000 else (1e5, "億円")
+
+
+def _amt(fin: Financials, v: float) -> str:
+    div, name = _unit(fin)
+    return f"{v / div:,.1f}{name}"
+
+
+def _ratio_frame(fin: Financials, mode: str, benches: list[dict], adj=()) -> pd.DataFrame:
     rows = []
     for i in ind.RATIOS:
-        v = ind.evaluate(fin, i, mode)
+        v = ind.evaluate(fin, i, mode, adj)
         row = {"指標": i.label, "対象企業": None if v.cur is None else v.cur * 100}
         for b in benches:
             row[b["name"]] = b["ratios"].get(i.key, float("nan")) * 100
@@ -37,11 +47,11 @@ def _ratio_frame(fin: Financials, mode: str, benches: list[dict]) -> pd.DataFram
     return pd.DataFrame(rows)
 
 
-def _basis_frame(fin: Financials, mode: str, benches: list[dict]) -> pd.DataFrame:
+def _basis_frame(fin: Financials, mode: str, benches: list[dict], adj=()) -> pd.DataFrame:
     """グラフの基礎数値：比率ごとに計算式、分子・分母の内訳（科目・金額・出典頁）、比較値とその出典。"""
     rows = []
     for i in ind.RATIOS:
-        v = ind.evaluate(fin, i, mode)
+        v = ind.evaluate(fin, i, mode, adj)
         side = lambda parts: "＋".join(f"{p.label} {p.cur:,}（{p.source}）" for p in parts if p.cur is not None) or "—"
         row = {"指標": i.label, "計算式": i.formula, "分子": side(v.num), "分母": side(v.den),
                "対象企業": ind.fmt(i, v.cur)}
@@ -76,68 +86,131 @@ def _ratio_chart(df: pd.DataFrame, benches: list[dict]) -> go.Figure:
 
 
 KIND_COLOR = {"資産": C_COMPANY, "負債": C_AVG, "純資産": C_BENCH}
-# 下から積む順。含み益に由来する区画は一番上に置き、実質の列と見比べたとき「上のふたが消える」ように見せる
-STACK_ORDER = {"資産": ["投資その他", "有形・無形", "その他の流動", "現金預金", "株式の含み益"],
-               "負債・純資産": ["純資産", "固定負債", "流動負債", "繰延税金負債", "評価差額金"]}
+# 下から積む順（土台）。調整の斜線は一番上に重ね、名目と実質で土台の高さがそろうようにする
+STACK_ORDER = {"資産": ["投資その他の資産", "有形・無形固定資産", "その他の流動資産", "現金預金"],
+               "負債・純資産": ["純資産", "固定負債", "流動負債"]}
+PATTERN = dict(fillmode="overlay", fgcolor="rgba(255,255,255,0.8)", size=7, solidity=0.3)
 
 
-def _stack_rank(b: metrics.BSBlock) -> int:
-    return next(i for i, head in enumerate(STACK_ORDER[b.side]) if b.label.startswith(head))
+def _stack_key(b: metrics.BSBlock) -> tuple:
+    order = STACK_ORDER[b.side]
+    return (b.side != "資産", bool(b.adjust), order.index(b.label) if b.label in order else len(order))
 
 
-def _bs_chart(fin: Financials) -> go.Figure:
-    """比例縮尺の貸借対照表。左右の柱の高さが金額に比例し、名目と実質を同じ目盛りで並べる。"""
-    has_gain = bool(metrics.unrealized_gain_pretax(fin))
-    views = [("名目", "nominal"), ("実質", "real")] if has_gain else [("名目＝実質", "nominal")]
+def _bs_chart(fin: Financials, adj=()) -> go.Figure:
+    """比例縮尺の貸借対照表。柱の高さが金額に比例し、名目（帳簿）と実質（帳簿＋調整）を同じ目盛りで並べる。"""
+    has_adj = bool(metrics.real_adjustments(fin, adj))
+    views = [("名目（帳簿）", "nominal"), ("実質（調整後）", "real")] if has_adj else [("帳簿＝実質（調整なし）", "nominal")]
+    div, unit = _unit(fin)
     fig = go.Figure()
-    # 凡例は固定順で先に作る（色は種類、斜線は「実質では消える」）。区画ごとの名前は柱の中とホバーに出す
-    legend_items = [("資産", KIND_COLOR["資産"], ""), ("負債", KIND_COLOR["負債"], ""), ("純資産", KIND_COLOR["純資産"], ""),
-                    ("斜線：含み益に由来（実質では消える）" if has_gain else "", "#9a9994", "/")]
-    if any(b.kind == "純資産" and b.amount < 0 for _, m in views for b in metrics.bs_blocks(fin, m)):
-        legend_items.append(("斜線：債務超過", KIND_COLOR["純資産"], "/"))
-    for name, color, shape in legend_items:
-        if name:
-            fig.add_bar(x=[[views[0][0]], ["資産"]], y=[None], name=name, marker=dict(color=color, pattern=dict(
-                shape=shape, fillmode="overlay", fgcolor="rgba(255,255,255,0.8)", size=7, solidity=0.3)),
-                hoverinfo="skip")
+    # 凡例は固定順で先に作る（色は種類、斜線は調整）。区画ごとの名前は柱の中とホバーに出す
+    legend = [("資産", KIND_COLOR["資産"], ""), ("負債", KIND_COLOR["負債"], ""), ("純資産", KIND_COLOR["純資産"], "")]
+    if has_adj:
+        legend.append(("斜線：調整（名目の列＝除く分／実質の列＝加わる分）", "#9a9994", "/"))
+    for name, color, shape in legend:
+        fig.add_bar(x=[[views[0][0]], ["資産"]], y=[None], name=name,
+                    marker=dict(color=color, pattern=dict(shape=shape, **PATTERN)), hoverinfo="skip")
     for view, mode in views:
-        blocks = metrics.bs_blocks(fin, mode)
-        totals = {side: sum(b.amount for b in blocks if b.side == side) for side in ("資産", "負債・純資産")}
-        for b in sorted(blocks, key=lambda b: (b.side != "資産", _stack_rank(b))):
-            share = b.amount / totals[b.side] if totals[b.side] else 0
+        blocks = metrics.bs_blocks(fin, mode, adj)
+        for b in sorted(blocks, key=_stack_key):
+            what = f"調整（{b.adjust}）：{b.label}" if b.adjust else b.label
+            neg = b.kind == "純資産" and b.amount < 0
             fig.add_bar(
-                x=[[view], [b.side]], y=[b.amount / 1e5], name=b.label, showlegend=False,
+                x=[[view], [b.side]], y=[b.amount / div], name=what, showlegend=False,
                 marker=dict(color=KIND_COLOR[b.kind], line=dict(width=2, color="rgba(255,255,255,0.85)"),
-                            opacity=0.5 if b.gain_related else 1.0,
-                            pattern=dict(shape="/" if b.gain_related or b.amount < 0 else "", fillmode="overlay",
-                                         fgcolor="rgba(255,255,255,0.8)", size=7, solidity=0.3)),
-                text=f"{b.label}<br>{b.amount / 1e5:,.1f}億円", textposition="inside", insidetextanchor="middle",
-                hovertemplate=(f"{view}・{b.side}<br>{b.label}<br>{b.amount:,}千円（{b.amount / 1e5:,.2f}億円）"
-                               f"<br>{b.side}合計の{share:.0%}<extra></extra>"),
+                            opacity=0.5 if b.adjust else 1.0, pattern=dict(shape="/" if b.adjust or neg else "", **PATTERN)),
+                text=f"{'債務超過 ' if neg else ''}{what}<br>{b.amount / div:,.1f}{unit}", textposition="inside",
+                insidetextanchor="middle",
+                hovertemplate=f"{view}・{b.side}<br>{what}<br>{b.amount:,}千円<extra></extra>",
             )
     fig.update_layout(
         barmode="relative", bargap=0.08, bargroupgap=0.0, height=520, margin=dict(l=10, r=10, t=10, b=10),
         uniformtext=dict(minsize=10, mode="hide"),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, traceorder="normal"),
-        yaxis=dict(ticksuffix="億円", showgrid=True, zeroline=True), xaxis=dict(type="multicategory"),
+        yaxis=dict(ticksuffix=unit, showgrid=True, zeroline=True), xaxis=dict(type="multicategory"),
     )
     return fig
 
 
-def _bs_caption(fin: Financials) -> str:
-    nom, real = metrics.balance_sheet(fin, "nominal"), metrics.balance_sheet(fin, "real")
-    gain = metrics.unrealized_gain_pretax(fin) or 0
-    if not gain:
-        head = "株式の含み益はありません。名目と実質は同じ姿です。"
+def _bs_caption(fin: Financials, adj=()) -> str:
+    nom, real = metrics.balance_sheet(fin, "nominal"), metrics.balance_sheet(fin, "real", adj)
+    if not metrics.real_adjustments(fin, adj):
+        head = ("実質化の調整はまだありません。帳簿どおりに描いています"
+                "（株式や土地は取得原価で計上されている前提。含み損益は外からは分からないため）。")
     else:
-        head = (f"名目の総資産{_oku(nom['総資産'])}のうち、株式の含み益が{_oku(gain)}（{gain / nom['総資産']:.0%}）。"
-                f"斜線の部分を除くと、実質の総資産は{_oku(real['総資産'])}に縮み、"
-                f"純資産は{_oku(nom['純資産'])}から{_oku(real['純資産'])}になります（推計）。")
-    if nom["純資産"] < 0:
-        head += f"純資産がマイナス（債務超過 {_oku(-nom['純資産'])}）です。"
+        head = (f"帳簿の総資産{_amt(fin, nom['総資産'])}は、調整を加えると{_amt(fin, real['総資産'])}、"
+                f"純資産は{_amt(fin, nom['純資産'])}から{_amt(fin, real['純資産'])}になります（推計。税効果は入力どおり）。")
+    if real["純資産"] < 0:
+        head += f"実質の純資産はマイナス（債務超過 {_amt(fin, -real['純資産'])}）です。"
     else:
-        head += f"負債は資産の{nom['負債'] / nom['総資産']:.0%}（名目）。"
+        head += f"負債は資産の{real['負債'] / real['総資産']:.0%}（実質）。"
     return head
+
+
+def _render_adjustments(fin: Financials, run, session, adj: list) -> None:
+    """確かめたい科目の一覧と、実質化の調整の入力・取り消し。入力は論争への介入としても書き込む。"""
+    from core import adjust
+
+    st.markdown("##### 実質化で確かめたい科目")
+    st.caption("図の中では、これらの科目は帳簿に計上されている区画のまま扱っています。確かめた結果を調整として入力すると、"
+               "実質の列と実質の指標に反映され、論争の各担当者も以後その調整を前提に議論します（資金の計算は変わりません）。")
+    watch = metrics.watch_items(fin)
+    for _key, label, amount, block, why in watch:
+        st.markdown(f"- **{label}** {amount:,}千円（{block}）— {why}")
+    if not watch:
+        st.caption("該当する科目はありません。")
+    auto = [a for a in metrics.real_adjustments(fin) if a.origin == "開示"]
+    if auto or adj:
+        st.markdown("**入っている調整**")
+        for a in auto:
+            st.markdown(f"- 〔決算書の開示から自動〕{a.describe()}")
+        own = {a["id"] for a in run.read(adjust.FILE, [])} if run is not None else set()
+        for a in adj:
+            c1, c2 = st.columns([5, 1])
+            c1.markdown(f"- 〔介入 {a.id}〕{a.describe()}")
+            if a.id in own and not run.frozen and c2.button("取り消す", key=f"adj_del_{a.id}", type="tertiary"):
+                gone = adjust.remove(run, a.id)
+                _tell_debate(session, adjust.intervention_text(gone, removed=True))
+                st.rerun()
+    if run is None or run.frozen:
+        return
+    options = [f"{label}（{block}）" for _k, label, _a, block, _w in watch] + ["その他の科目（名前を入力）"]
+    with st.form("adj_form", clear_on_submit=True, border=True):
+        st.markdown("**調整を入れる（介入）**")
+        pick = st.selectbox("科目", options, key="adj_pick")
+        other = st.text_input("科目名（その他を選んだとき）", key="adj_name")
+        block = st.selectbox("区画（その他を選んだとき）", list(adjust.BLOCKS), key="adj_block")
+        amount = st.number_input("増減額（千円。増やすなら＋、減らすなら−）", step=100, value=0, key="adj_amount")
+        note = st.text_input("根拠（例：銘柄〇〇の時価、社長への聞き取り）", key="adj_note")
+        if st.form_submit_button("調整を入れて論争に伝える", type="primary"):
+            if pick.startswith("その他"):
+                name, key_, blk = other, None, block
+            else:
+                w = watch[options.index(pick)]
+                name, key_, blk = w[1], w[0], w[3]
+            try:
+                new = adjust.add(run, name, blk, int(amount), note, key_)
+            except ValueError as e:
+                st.error(str(e))
+            else:
+                mid = _tell_debate(session, adjust.intervention_text(new))
+                if mid:
+                    adjust.set_message_id(run, new.id, mid)
+                st.rerun()
+
+
+def _tell_debate(session, text: str) -> str | None:
+    """調整を論争のタイムラインに介入として書き込み、担当者の文脈を更新する。"""
+    if session is None:
+        return None
+    from core import adjust
+    from core.interrupt import intervene
+
+    session.ctx.adjustments = adjust.load(session.run)
+    try:
+        return intervene(session, text).id
+    except Exception:          # 凍結された回次など。調整そのものは保存済み
+        return None
 
 
 def _recon_frame(report: ReconciliationReport) -> pd.DataFrame:
@@ -208,14 +281,14 @@ def _render_requests(requests: list[dict]) -> None:
                 st.caption(f":material/attach_file: {rec['file']}（{rec['run']}）")
 
 
-def _render_kpis(fin: Financials, mode: str) -> None:
+def _render_kpis(fin: Financials, mode: str, adj=()) -> None:
     """全社共通の指標と、条件を満たすときだけの会社固有の指標。各指標に計算式・前期比・出典頁を添える。"""
     items = ind.kpis(fin)
     base = metrics.cash_base(fin)
     rw = metrics.project(base, []).cash_runway_months
     cols = st.columns(4)
     for n, i in enumerate(items):
-        v = ind.evaluate(fin, i, mode)
+        v = ind.evaluate(fin, i, mode, adj)
         help_ = f"{i.why}。計算式：{i.formula}\n\n内訳：{v.basis}" + (f"\n\n{v.note}" if v.note else "")
         d = ind.delta_text(v)
         cols[n % 4].metric(i.label, ind.fmt(i, v.cur), d, delta_color="off" if d else "normal", help=help_)
@@ -230,19 +303,26 @@ def _render_kpis(fin: Financials, mode: str) -> None:
 
 
 def render(fin: Financials | None, report: ReconciliationReport | None, mode: str, benchmarks: dict,
-           requests: list[dict], source_label: str) -> None:
+           requests: list[dict], source_label: str, run=None, session=None) -> None:
     if fin is None:
         st.info("この回次には財務データがありません。決算書類を投入してください。", icon=":material/info:")
         _render_requests(requests)
         return
 
-    bs = metrics.balance_sheet(fin, mode)
-    m = metrics.core_metrics(fin)
-    mode_name = "名目BS（制度会計・時価評価）" if mode == "nominal" else "実質本業BS（株式の含み益を控除した推計）"
+    from core import adjust
+
+    adj = adjust.load(run) if run is not None else []
+    try:
+        bs = metrics.balance_sheet(fin, mode, adj)
+    except ValueError as e:
+        st.warning(str(e), icon=":material/warning:")
+        bs = metrics.balance_sheet(fin, "nominal")
+        mode, adj = "nominal", []
+    mode_name = "名目BS（帳簿どおり）" if mode == "nominal" else "実質BS（帳簿＋実質化の調整）"
     st.markdown(f"##### 表示モード：{mode_name}")
     st.caption(bs["注記"])
 
-    _render_kpis(fin, mode)
+    _render_kpis(fin, mode, adj)
 
     st.divider()
     left, right = st.columns([3, 2], gap="large")
@@ -251,23 +331,19 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
         benches = [b for b in [benchmarks.get("industry")] + benchmarks.get("peers", []) if b][:2]
         if any(b.get("placeholder") for b in benches):
             st.warning(benches[0].get("note", "比較値は仮置きです"), icon=":material/construction:")
-        df = _ratio_frame(fin, mode, benches)
+        df = _ratio_frame(fin, mode, benches, adj)
         st.plotly_chart(_ratio_chart(df, benches), width="stretch", theme="streamlit")
         st.markdown("**グラフの基礎数値と典拠**")
-        bf = _basis_frame(fin, mode, benches)
+        bf = _basis_frame(fin, mode, benches, adj)
         import html as _h
         head = "".join(f"<th>{_h.escape(c)}</th>" for c in bf.columns)
         body = "".join("<tr>" + "".join(f"<td>{_h.escape(str(v))}</td>" for v in r) + "</tr>" for r in bf.itertuples(index=False))
         st.html(f'<div class="dd-cmp-wrap"><table class="dd-cmp dd-basis"><thead><tr>{head}</tr></thead>'
                 f"<tbody>{body}</tbody></table></div>")
         st.markdown("##### 貸借対照表（面積が金額に比例）")
-        st.plotly_chart(_bs_chart(fin), width="stretch", theme="streamlit")
-        st.caption(_bs_caption(fin))
-        watch = metrics.watch_items(fin)
-        if watch:
-            with st.expander("実質化で確かめたい科目（まだこの図には反映していません）", icon=":material/search:"):
-                for label, amount, why in watch:
-                    st.markdown(f"- **{label}** {amount:,}千円 — {why}")
+        st.plotly_chart(_bs_chart(fin, adj), width="stretch", theme="streamlit")
+        st.caption(_bs_caption(fin, adj))
+        _render_adjustments(fin, run, session, adj)
     with right:
         if report is not None:
             _render_recon(report, fin, source_label)

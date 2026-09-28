@@ -46,7 +46,7 @@ def test_debt_includes_short_term_borrowings(crisis):
 def test_real_mode_uses_the_estimated_balance_sheet(alpha):
     er = next(i for i in ind.COMMON if i.key == "equity_ratio")
     nom, real = ind.evaluate(alpha, er, "nominal"), ind.evaluate(alpha, er, "real")
-    assert nom.cur != real.cur and real.prev is None and real.note.startswith("実質本業BS（推計）")
+    assert nom.cur != real.cur and real.prev is None and real.note.startswith("実質BS：推計")
 
 
 def test_ratio_rows_have_no_hardcoded_pages(crisis):

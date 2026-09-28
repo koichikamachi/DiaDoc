@@ -110,6 +110,7 @@ class DebateContext:
     script: dict | None = None                                 # モック用の台本
     trace_path: Path | None = None                             # 発言生成の記録（Gemini の生の出力。調整用）
     mission: str | None = None                                 # 企業ごとの診断ミッションの初期値（meta.json）
+    adjustments: list = field(default_factory=list)            # 実質化の調整（人間の入力。core.adjust）
 
     @property
     def registry(self) -> set[str]:
@@ -136,9 +137,12 @@ class DebateContext:
                     materials[p.stem] = p.read_text(encoding="utf-8")[:MATERIAL_LIMIT]
         script_path = company_dir(run.company) / "debate_script.json"
         script = json.loads(script_path.read_text(encoding="utf-8")) if script_path.exists() else None
+        from core import adjust
+
         return cls(company=run.company, display_name=meta.get("display_name", run.company),
                    fictional=bool(meta.get("fictional")), fin=fin, base=base, materials=materials, script=script,
-                   trace_path=run.path / "debate_trace.jsonl", mission=meta.get("mission"))
+                   trace_path=run.path / "debate_trace.jsonl", mission=meta.get("mission"),
+                   adjustments=adjust.load(run))
 
     def resolve_source(self, name: str | None) -> str | None:
         """出典の資料名を、引用できる資料の正式名に合わせる（空白・下線・全角半角・括弧の揺れだけを吸収する）。"""
@@ -209,6 +213,28 @@ def bridge_catalog() -> str:
     return "、".join(f"{k}:{label}" for k, *_x, label, _t in ACCOUNTS if cash_sign(k, "減") is not None)
 
 
+def _real_bs_lines(ctx: DebateContext) -> list[str]:
+    """実質の貸借対照表と、その前提になっている調整。人間の調整は、発言が流れても毎回ここに出す。"""
+    if ctx.fin is None:
+        return []
+    from core.metrics import balance_sheet, disclosed_adjustments
+
+    try:
+        adj = disclosed_adjustments(ctx.fin) + list(ctx.adjustments)
+        nom, real = balance_sheet(ctx.fin, "nominal"), balance_sheet(ctx.fin, "real", ctx.adjustments)
+    except ValueError as e:
+        return ["## 実質の貸借対照表", f"- 計算できない：{e}", ""]
+    lines = ["## 実質の貸借対照表（帳簿＋調整。プログラムが計算）",
+             f"- 総資産 {nom['総資産']:,} → {real['総資産']:,}　純資産 {nom['純資産']:,} → {real['純資産']:,}"
+             f"　自己資本比率 {nom['自己資本比率']:.1%} → {real['自己資本比率']:.1%}"]
+    if adj:
+        lines += [f"- 調整［{'決算書の開示から' if a.origin == '開示' else '人間の介入'}］{a.describe()}" for a in adj]
+    else:
+        lines.append("- 調整なし。株式・土地などは取得原価で計上されている前提（含み損益は外からは分からない）")
+    lines.append("- 人間が入れた調整は、以後の議論の前提として扱う。調整は資金（キャッシュ）の計算を変えない")
+    return lines + [""]
+
+
 def _monitor_lines(m: Monitor, title: str) -> list[str]:
     v = monitor_values(m)
     lines = [f"## {title}",
@@ -241,6 +267,7 @@ def context_text(state: DebateState, ctx: DebateContext, recent: int = 14) -> st
     lines += ["## 改善レバーの消化状況（Growth が審査を通した提案。プログラムが集計）",
               "- 試した：" + ("・".join(tried) or "まだない"),
               "- 未着手：" + ("・".join(lv for lv in LEVERS if lv not in tried) or "なし（4つすべて試した）"), ""]
+    lines += _real_bs_lines(ctx)
     lines += ["## 引用できる資料（出典の資料名はこの中から、頁付きで）", *[f"- {d}" for d in sorted(ctx.registry)], ""]
     for name, text in ctx.materials.items():
         lines += [f"## 資料本文：{name}", text, ""]

@@ -19,3 +19,5 @@ Thumbs.db
 # 論争の途中状態（分析回次ごとのチェックポイント）
 data/**/checkpoints.sqlite*
 data/**/debate_trace.jsonl
+# 実質化の調整（利用者が回次ごとに入力する。見本データには含めない）
+data/**/adjustments.json

@@ -32,10 +32,10 @@ def _oku(v: int) -> str:
     return f"{v / 100_000:,.1f}億円"
 
 
-def _kpis(fin: Financials, state: DebateState | None, base) -> None:
+def _kpis(fin: Financials, state: DebateState | None, base, adjustments=()) -> None:
     m = metrics.core_metrics(fin)
     try:
-        roa_s = f"{metrics.balance_sheet(fin, 'real')['営業利益ROA'] * 100:.1f}%"
+        roa_s = f"{metrics.balance_sheet(fin, 'real', adjustments)['営業利益ROA'] * 100:.1f}%"
     except ValueError:
         roa_s = "—"
     mon = state.monitor if state else metrics.project(base, [])
@@ -48,7 +48,7 @@ def _kpis(fin: Financials, state: DebateState | None, base) -> None:
     rows = [
         ("売上高", _oku(m["売上高"]), fin.fiscal_period.split("（")[0]),
         ("営業利益率", f"{m['営業利益率'] * 100:.1f}%", "営業利益÷売上高"),
-        ("実質ROA", roa_s, "営業利益÷実質本業総資産"),
+        ("実質ROA", roa_s, "営業利益÷実質の総資産"),
         ("手許現預金", _oku(m["現金預金"]), "期末残高"),
         ("借入残高", _oku(m["有利子負債"]), "短期・長期・社債・リース"),
         ("残余月数", rw, rw_sub),
@@ -119,11 +119,11 @@ def _statuses(state: DebateState | None) -> None:
                 st.caption("比べた表は、対話タイムラインの最後と「意思決定ツリー」タブ（全幅）にあります")
 
 
-def render(fin: Financials | None, state: DebateState | None, base) -> None:
+def render(fin: Financials | None, state: DebateState | None, base, adjustments=()) -> None:
     st.markdown('<div class="dd-pane-title">ライブ・メトリクス</div>', unsafe_allow_html=True)
     if fin is None:
         st.info("財務データがありません")
         return
-    _kpis(fin, state, base)
+    _kpis(fin, state, base, adjustments)
     _bottlenecks(state, base)
     _statuses(state)

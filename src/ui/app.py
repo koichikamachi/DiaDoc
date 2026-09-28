@@ -112,8 +112,8 @@ def sidebar() -> tuple[Run, str]:
                 reset(run)
                 ss.flash = f"{run.meta.label}の論争を最初からやり直します"
                 st.rerun()
-        real = st.toggle("実質本業BSで見る", value=False,
-                         help="オフ：名目BS（制度会計・時価評価）　オン：実質本業BS（株式の含み益を控除した推計）")
+        real = st.toggle("実質BSで見る", value=False,
+                         help="オフ：名目BS（制度会計・時価評価）　オン：実質BS（帳簿＋実質化の調整）")
 
         st.divider()
         read_eng = f"Gemini（{config.gemini_model()}）" if config.extractor_mode() == "gemini" else "モック"
@@ -243,9 +243,10 @@ def main() -> None:
                 st.markdown('<div class="dd-pane-title">対話タイムライン</div>', unsafe_allow_html=True)
                 timeline.render(session, run.frozen)
             with right, st.container(key="pane-right"):
-                live_panel.render(fin, state, session.ctx.base)
+                live_panel.render(fin, state, session.ctx.base, session.ctx.adjustments)
     with t2:
-        matrix.render(fin, report, mode, load_benchmarks(run.company), run.read("data_requests.json", []), source_label)
+        matrix.render(fin, report, mode, load_benchmarks(run.company), run.read("data_requests.json", []), source_label,
+                      run=run, session=session)
         matrix.render_extractions(run)
     with t3:
         cmp_ = digest.comparison(state)

@@ -112,15 +112,15 @@ def _sum(parts: list[Part], period: str) -> int | None:
     return sum(vals)
 
 
-def evaluate(fin: Financials, ind: Indicator, mode: str = "nominal") -> Value:
+def evaluate(fin: Financials, ind: Indicator, mode: str = "nominal", extra=()) -> Value:
     num, den = _parts(fin, ind.num), _parts(fin, ind.den)
     if ind.real_bs and mode == "real":
         try:
-            bs = metrics.balance_sheet(fin, "real")
+            bs = metrics.balance_sheet(fin, "real", extra)
         except ValueError as e:
             return Value(ind, None, None, num, den, note=str(e))
         cur = {"ta": bs["総資産"], "equity_ratio": bs["自己資本比率"], "roa": bs["営業利益ROA"]}[ind.key]
-        return Value(ind, cur, None, num, den, note="実質本業BS（推計）：" + bs["注記"])
+        return Value(ind, cur, None, num, den, note="実質BS：" + bs["注記"])
 
     def calc(period):
         n = _sum(num, period)
