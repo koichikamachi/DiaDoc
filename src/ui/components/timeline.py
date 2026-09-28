@@ -1,0 +1,281 @@
+"""中央ペイン：操作デッキと、発言タイムライン、人間の介入欄。"""
+
+from __future__ import annotations
+
+import html
+
+import streamlit as st
+
+from agents_profile import PHASE, PROFILES
+from theme import agent_color
+from core import export
+from core.graph import DebateSession
+from core.interrupt import EmptyInterventionError, intervene
+from schema import DebateMessage
+from state import DebateState
+
+TIMELINE_HEIGHT = 540
+
+
+def csv_name(session) -> str:
+    return f"DiaDoc_{session.run.company}_{session.run.run_id}_議論ログ.csv"
+LONG_TEXT = 240   # これより長い発言は冒頭だけ見せて折りたたむ
+
+
+def _verdicts(state: DebateState) -> dict[str, tuple[str, list[str]]]:
+    out: dict[str, tuple[str, list[str]]] = {}
+    for r in state.rulings:
+        out[r.message_id] = (r.verdict, r.reasons)
+    return out
+
+
+def _counted(state: DebateState) -> dict[tuple[str, str], bool]:
+    return {(c.message_id, c.bridge.account): c.in_time for c in state.monitor.counted}
+
+
+def _bridge_html(m: DebateMessage, counted: dict) -> str:
+    from tools.standard_accounts import LABELS
+
+    rows = []
+    for b in m.bridges:
+        in_time = counted.get((m.id, b.account))
+        tag = "" if in_time is None else ("✓ 間に合う" if in_time else "✕ 資金が尽きた後")
+        cls = ' class="dd-late"' if in_time is False else ""
+        rows.append(
+            f'<div class="dd-bridge"><span>⇢ <b>{html.escape(LABELS.get(b.account, b.account))}</b> {b.direction}</span>'
+            f'<span>変動 <b>{b.amount:,}</b></span><span{cls}>資金 <b>{b.cf_effect:+,}</b>'
+            f'{"／年" if b.recurring else "（一回）"}</span><span>{b.lead_months}か月後</span>'
+            f'<span class="dd-when">{html.escape(tag)}</span></div>')
+    return "".join(rows)
+
+
+VERDICT_CLASS = {"通過": ("ok", "✓"), "差し戻し": ("back", "↩"), "退け": ("rej", "✕")}
+
+
+def _header_html(m: DebateMessage, verdict: str | None) -> str:
+    """発言者を大きく示す見出し。色の丸（識別の補助）＋名前（大）＋肩書（小）＋判定。"""
+    p = PROFILES[m.speaker]
+    color = agent_color(m.speaker)
+    v = ""
+    if verdict:
+        cls, mark = VERDICT_CLASS[verdict]
+        v = f'<span class="dd-verdict dd-{cls}">{mark} {verdict}</span>'
+    glyph_ink = "#ffffff" if m.speaker in ("radar", "rebuild", "growth") else "var(--dd-card)"
+    return (f'<div class="dd-speaker"><span class="dd-av" style="background:{color};color:{glyph_ink}">{p["glyph"]}</span>'
+            f'<span class="dd-name">{html.escape(p["name"])}</span>'
+            f'<span class="dd-role">{html.escape(p["title"])}（{html.escape(p["duty"])}）</span>'
+            f'<span class="dd-meta">{html.escape(m.action)}｜第{m.round}ラウンド</span>{v}</div>')
+
+
+def _split_long(text: str, limit: int = LONG_TEXT) -> tuple[str, str | None]:
+    """長い発言は最初の数文だけを見せ、残りを折りたたむ。文の途中では切らない。"""
+    if len(text) <= limit:
+        return text, None
+    cut = 0
+    for i, ch in enumerate(text):
+        if ch in "。\n" and i + 1 >= limit * 0.45:
+            cut = i + 1
+            break
+    if cut == 0 or cut >= len(text) - 20:
+        cut = limit
+    return text[:cut], text[cut:]
+
+
+def _options_html(m: DebateMessage) -> str:
+    rows = []
+    for o in m.options:
+        rows.append(
+            f'<div class="dd-option"><div class="dd-option-name">{html.escape(o.name)}</div>'
+            f'<div><span class="dd-k">残す</span>{html.escape("・".join(o.keep) or "—")}</div>'
+            f'<div><span class="dd-k">捨てる</span>{html.escape("・".join(o.discard) or "—")}</div>'
+            f'<div><span class="dd-k">前提</span>{html.escape("／".join(o.preconditions) or "—")}</div></div>')
+    return '<div class="dd-options">' + "".join(rows) + "</div>"
+
+
+def _judge_body(m: DebateMessage) -> None:
+    n = m.judge_note
+    t = n.tally
+    chips = "".join(f'<span class="dd-verdict dd-{VERDICT_CLASS[k][0]}">{VERDICT_CLASS[k][1]} {k} {t.get(k, 0)}件</span>'
+                    for k in ("通過", "差し戻し", "退け"))
+    req = "—" if n.required_cf is None else f"{n.required_cf:,}"
+    gap = "—" if n.gap is None else f"{n.gap:,}"
+    rw = "流出なし" if n.runway is None else f"{n.runway:.1f}か月"
+    st.html(f'<div class="dd-tally">{chips}</div>'
+            f'<div class="dd-mini"><span>必要CF<b>{req}</b></span><span>回収CF累計<b>{n.accumulated:,}</b></span>'
+            f'<span>不足<b>{gap}</b></span><span>残余月数<b>{rw}</b></span><span>膠着<b>{n.stalemate}回</b></span></div>')
+    for x in n.sent_back:
+        st.markdown(f":orange[:material/undo:] {x}")
+    if n.summary:
+        st.markdown(n.summary)
+    d = n.decision
+    if d and d.changed:
+        cur, nxt = PHASE[d.current]["label"], PHASE[d.next]["label"]
+        st.html(f'<div class="dd-phase dd-phase-{d.next}"><b>フェーズ判定（プログラム）：{cur} → {nxt}</b><br>'
+                f'{html.escape(d.reason)}</div>')
+    elif d and d.rule == "levers_remaining":   # 資金は足りないが、未着手のレバーがあるので探索を続ける（あがき）
+        st.html(f'<div class="dd-phase"><b>フェーズ判定（プログラム）：探索を続ける</b><br>{html.escape(d.reason)}</div>')
+    if n.closing:
+        st.markdown(f":material/flag: **{n.closing}**")
+
+
+def comparison_html(m: DebateMessage, runway: float | None) -> str:
+    """トリアージの道の比較表。行＝物差し、列＝道。どれかを推すことはしない。"""
+    rows_def = [
+        ("雇用", lambda a: html.escape(a.employment or "—")),
+        ("資金繰り", lambda a: html.escape(a.cash or "—")),
+        ("債権者に求めること", lambda a: html.escape(a.creditors or "—")),
+        ("道筋がつくまで", lambda a: "—" if a.months_needed is None else (
+            f'<b>{a.months_needed}か月</b>　' + ("" if a.in_time is None else (
+                '<span class="dd-verdict dd-ok">✓ 残余月数内</span>' if a.in_time
+                else '<span class="dd-verdict dd-rej">✕ 残余月数を超える</span>')))),
+        ("主なリスク", lambda a: "<br>".join("・" + html.escape(x) for x in a.risks) or "—"),
+        ("決め手になる事実", lambda a: html.escape(a.deciding_fact or "—")),
+        ("出典", lambda a: "、".join(html.escape(x.label()) for x in a.sources) or "—"),
+    ]
+    head = "".join(f"<th>{html.escape(a.name)}</th>" for a in m.comparison)
+    body = "".join(f"<tr><th>{k}</th>" + "".join(f"<td>{f(a)}</td>" for a in m.comparison) + "</tr>"
+                   for k, f in rows_def)
+    rw = "資金流出なし" if runway is None else f"残余月数 約{runway:.1f}か月"
+    return (f'<div class="dd-cmp-wrap"><table class="dd-cmp"><thead><tr><th>物差し（{rw}）</th>{head}</tr></thead>'
+            f"<tbody>{body}</tbody></table></div>")
+
+
+def _card(m: DebateMessage, verdicts: dict, counted: dict, runway: float | None = None) -> None:
+    v = verdicts.get(m.id)
+    with st.container(border=True, key=f"card-{m.speaker}-{m.id}"):
+        st.html(_header_html(m, v[0] if v else None))
+        if m.speaker == "judge" and m.judge_note is not None:
+            _judge_body(m)
+            return
+        if m.action == "比較" and m.comparison:
+            st.markdown("**Level 0 の道の比較**　:gray[同じ物差しで並べたもの。どれを選ぶかは人間が決めます]")
+            st.html(comparison_html(m, runway))
+            st.markdown(m.text.replace("\n", "  \n"))
+            return
+        if m.speaker == "human" and m.addressee:
+            st.markdown(f":gray[:material/subdirectory_arrow_right: {PROFILES[m.addressee]['name']} 宛て]")
+        head, rest = _split_long(m.text)
+        st.markdown(head.replace("\n", "  \n"))
+        if m.options:
+            st.html(_options_html(m))
+        if m.bridges:
+            st.html(_bridge_html(m, counted))
+        if rest:
+            with st.expander("続きを読む（全文）", icon=":material/unfold_more:"):
+                st.markdown(rest.replace("\n", "  \n"))
+        details = []
+        if m.sources and m.speaker != "judge":
+            details.append("**出典**　" + "、".join(s.label() for s in m.sources))
+        if m.settle_condition:
+            details.append("**決着条件**　" + m.settle_condition)
+        if v and v[1]:
+            details.append("**審査の理由**　" + "／".join(v[1]))
+        if details:
+            with st.expander("根拠と審査", icon=":material/fact_check:"):
+                st.markdown("\n\n".join(details))
+
+
+def render(session: DebateSession, frozen: bool) -> None:
+    state = session.state() if session.started else None
+    finished = session.finished
+    nxt = session.next_node if session.started else "radar"
+
+    # --- 操作デッキ --------------------------------------------------------
+    no_data = session.ctx.fin is None
+    picks = {None: "自動（通常順）", "growth": "Prof. Growth", "rebuild": "Dr. Rebuild", "radar": "Analyst Radar"}
+    can_pick = session.can_nominate() and not frozen
+    head, pick_col = st.columns([1.5, 1], vertical_alignment="bottom")
+    with head:
+        if finished:
+            st.markdown(f":material/flag: **論争終了**　:gray[止まった理由：{state.stop_reason if state else ''}]")
+        else:
+            ph = PHASE[state.phase if state else "exploration"]
+            who = PROFILES[nxt]["name"] if nxt else "—"
+            rnd = f"第{state.round}ラウンド" if state else "開始前"
+            why = "（ライムの介入に回答）" if state and state.reply_to else ""
+            st.markdown(f":{ph['color']}-badge[{ph['icon']} {ph['label']}]　{rnd}　次の発言：**{who}**{why}")
+    pick = pick_col.selectbox("次の発言者", list(picks), format_func=picks.get, key="next_pick",
+                              disabled=not can_pick or no_data, label_visibility="collapsed",
+                              help="次の発言者を指名できます（探索段階のみ）。指名した担当者が割り込んで話し、"
+                                   "話し終えたら元の順番に戻ります")
+    if finished and not frozen and session.needs_comparison():
+        if st.button("宣告された道を比べる（Judge）", icon=":material/compare_arrows:", type="primary"):
+            with st.spinner("三つの道を同じ物差しで比べています…"):
+                try:
+                    session.add_comparison()
+                    st.session_state.debate_error = None
+                except Exception as e:
+                    st.session_state.debate_error = f"{type(e).__name__}: {e}"
+            st.rerun()
+    if no_data:
+        st.info("この回次には財務データがありません。左の資料ドックの「追加インプット」から財務書類（決算書など）を"
+                "投入してください。検算を通過すると論争を始められます（根拠がなければ止まる）。", icon=":material/upload_file:")
+    c1, c2, c3 = st.columns([1, 1, 0.6])
+    step = c1.button("▶ 1手進める", type="primary", width="stretch", disabled=frozen or finished or no_data,
+                     help="次の担当者（または指名した担当者）の発言を一つだけ生成して止まります（Next Turn）")
+    to_gate = c2.button("⏩ 次のラウンドへ", width="stretch", disabled=frozen or finished or no_data,
+                        help="ディレクターの裁定（とフェーズ判定）まで進めて止まります（Run to Gate）")
+    c3.download_button("📥 CSV", export.to_csv_bytes(state), width="stretch", key="csv_deck",
+                       file_name=csv_name(session), mime="text/csv", disabled=state is None or not state.messages,
+                       help="議論ログをCSVで保存（Excel でそのまま開ける BOM 付き UTF-8）")
+    if step or to_gate:
+        with st.spinner("発言を生成しています…"):
+            try:
+                if to_gate:
+                    session.run_round()
+                else:
+                    session.step(pick if can_pick else None)
+            except Exception as e:  # Gemini の失敗など。状態は進んでいないので再試行できる
+                st.session_state.debate_error = f"{type(e).__name__}: {e}"
+            else:
+                st.session_state.debate_error = None
+        st.rerun()
+    if st.session_state.get("debate_error"):
+        st.error("発言の生成に失敗しました。状態は進んでいないので、もう一度押せば再試行できます。\n\n"
+                 + st.session_state.debate_error, icon=":material/error:")
+
+    # --- タイムライン --------------------------------------------------------
+    with st.container(height=TIMELINE_HEIGHT, border=False, key="timeline", autoscroll=True):
+        if state is None or not state.messages:
+            st.info("論争はまだ始まっていません。「▶ 1手進める」で Analyst Radar の事実提示から始まります。",
+                    icon=":material/play_circle:")
+        else:
+            verdicts, counted = _verdicts(state), _counted(state)
+            last_round = None
+            for m in state.messages:
+                if m.round != last_round:
+                    ph = PHASE[m.phase]["label"]
+                    st.html(f'<div class="dd-round"><span>第{m.round}ラウンド・{ph}</span></div>')
+                    last_round = m.round
+                _card(m, verdicts, counted, state.monitor.cash_runway_months)
+
+    # --- 人間の介入 --------------------------------------------------------
+    nxt_name = PROFILES[nxt]["name"] if nxt else "—"
+    targets = {None: f"次の発言者に任せる（{nxt_name}）", "growth": "Prof. Growth に答えさせる",
+               "rebuild": "Dr. Rebuild に答えさせる", "radar": "Analyst Radar に答えさせる"}
+    with st.form("intervene", clear_on_submit=True, border=False):
+        text = st.text_area("人間介入（ライム）", placeholder="例：いきなり8%の削減は従業員の反発で難しいのでは？／遊休地の売却は地元の反対で難しい",
+                            height=80, disabled=frozen, key="intervene_text")
+        c1, c2 = st.columns([1.3, 1], vertical_alignment="bottom")
+        to = c1.selectbox("誰に答えさせるか", list(targets), format_func=targets.get, key="intervene_to",
+                          disabled=frozen or finished)
+        go = c2.checkbox("介入したらすぐ1手進める", value=True, key="intervene_go", disabled=frozen or finished)
+        sent = st.form_submit_button("介入する", icon=":material/record_voice_over:", disabled=frozen)
+    st.caption("指名した担当者は順番を割り込んで答え、答えた後は元の順番に戻ります。指名しなければ次の発言者が答えます")
+    if sent:
+        try:
+            intervene(session, text, addressee=to)
+        except EmptyInterventionError:
+            st.session_state.flash = "介入の内容が空です"
+            st.rerun()
+        if go and not session.finished:
+            with st.spinner("介入に答える発言を生成しています…"):
+                try:
+                    session.step()
+                    st.session_state.debate_error = None
+                except Exception as e:
+                    st.session_state.debate_error = f"{type(e).__name__}: {e}"
+            st.session_state.flash = "介入を書き込み、答えを生成しました"
+        else:
+            st.session_state.flash = "介入を書き込みました。「▶ 1手進める」で答えが出ます"
+        st.rerun()

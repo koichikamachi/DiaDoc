@@ -1,0 +1,20 @@
+# 明るい配色と暗い配色の両方を定義する。右上メニューの Settings で切り替え可能。
+# 既定ではOSの設定（ライト／ダーク）に従う。
+
+[theme.light]
+primaryColor = "#2a78d6"
+backgroundColor = "#fcfcfb"
+secondaryBackgroundColor = "#f1efe8"
+textColor = "#1f1f1e"
+
+[theme.dark]
+primaryColor = "#3987e5"
+backgroundColor = "#141413"
+secondaryBackgroundColor = "#232322"
+textColor = "#f2f1ec"
+
+[server]
+headless = true
+# 手元のPCからだけ開けるようにする（本物のAPIキーで動くため、LANや外部に公開しない）。
+# Cloud Run では Dockerfile の --server.address=0.0.0.0 がこの設定より優先される。
+address = "localhost"

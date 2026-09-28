@@ -1,0 +1,386 @@
+"""投入資料（PDF・Excel・画像）の読み取りと、検算ゲートへの受け渡し（CLAUDE.md 6.6・6.7）。
+
+流れ：
+    ファイル → 抽出器（Gemini または モック） → Extraction（標準科目キー・数値・出典頁）
+             → normalize（キー検証・別名の吸収・単位と端数処理の判定） → Financials
+             → guardrails.reconcile（検算ゲート） → IngestOutcome
+
+原則：
+- 読めないもの・記載のないものは推測しない。null（未確認）のまま残す
+- 数値の加工はしない。単位も原資料のまま（統合時に単位が違えば統合せず報告する）
+- LLM の出力は信用しない。キーは標準科目の一覧で検証し、未知のキーは捨てて報告する
+- APIキーがなければモック（制作サンプルを返す）で動く。モックは投入ファイルの中身を読んでいないことを明示する
+"""
+
+from __future__ import annotations
+
+import io
+import json
+from pathlib import Path
+from typing import Protocol
+
+from pydantic import BaseModel, Field
+
+import config
+from core.guardrails import reconcile
+from schema import Financials, LineItem, ReconciliationReport, SourceRef
+from tools import standard_accounts as sa
+
+ROOT = Path(__file__).resolve().parents[2]
+SAMPLE_FINANCIALS = ROOT / "data/companies/C001_sample_alpha/runs/run_001_initial/inputs/financials.json"
+
+
+# ---------------------------------------------------------------------------
+# 抽出結果（Gemini の構造化出力のスキーマを兼ねる）
+# ---------------------------------------------------------------------------
+class ExtractedItem(BaseModel):
+    key: str = Field(description="標準科目のキー。一覧にない科目は 'unknown'")
+    source_label: str = Field(description="原資料に書かれている科目名（そのまま）")
+    prev: int | None = Field(default=None, description="前期の金額。記載なし・判読不能なら null")
+    cur: int | None = Field(default=None, description="当期の金額。記載なし・判読不能なら null")
+    page: str | None = Field(default=None, description="出典の頁番号。頁がない資料ではシート名や表名")
+    section: str | None = Field(default=None, description="その行が属する表・区分。例：貸借対照表、損益計算書、販売費、一般管理費、製造原価明細書、株主資本等変動計算書、主要な経営指標等")
+
+
+class Extraction(BaseModel):
+    document_type: str = Field(description="資料の種別（例：貸借対照表、損益計算書、販管費内訳、勘定科目内訳明細書、試算表）")
+    company_name: str | None = None
+    fiscal_period: str | None = None
+    unit: str | None = Field(default=None, description="金額の単位。「円」「千円」「百万円」のいずれか。不明なら null")
+    rounding: str | None = Field(default=None, description="端数処理の記載（例：千円未満切捨て）。記載がなければ null")
+    items: list[ExtractedItem] = Field(default_factory=list)
+    unreadable: list[str] = Field(default_factory=list, description="判読できなかった科目名や箇所")
+
+
+# ---------------------------------------------------------------------------
+# 抽出器
+# ---------------------------------------------------------------------------
+class Extractor(Protocol):
+    name: str
+
+    def extract(self, filename: str, content: bytes) -> Extraction: ...
+
+
+PROMPT = """あなたは公認会計士の補助者として、決算書類から数値を書き写す係です。判断や推測はしません。
+
+次の資料から、下の「標準科目一覧」に当てはまる科目の金額を抽出し、指定のJSON形式で出力してください。
+
+規則：
+1. 原資料の科目名を標準科目に当てはめ、数値と出典頁（頁がない資料ではシート名や表名）を抽出せよ。
+2. 読めないもの・記載のないものは推測せず null（未確認）とせよ。計算で埋めることも禁止する。判読できなかった箇所は unreadable に書け。
+   ただし、表の中で金額欄に「－」「―」「—」と書かれているものは「金額ゼロ」という記載であり、0 と書け（空欄や判読不能とは区別する）。
+3. シノニム（荷造運賃＝発送費＝発送配達費、など）は標準科目に吸収せよ。source_label には原資料の科目名をそのまま書け。
+4. 標準科目一覧のどれにも当てはまらない科目は key を "unknown" とせよ。無理に当てはめない。
+5. 「減価償却費」「修繕費」「その他」のように複数の表に現れる科目は、どの表の行か（製造原価明細書か、販管費か、など）で key を選べ。
+6. 金額は資料の表示単位のまま整数で書け（千円表示なら千円のまま）。△や（ ）はマイナスとせよ。単位は unit に書け。
+   例外：一覧で「符号：△表示でも減少額を正の数で書く」と注記した科目（剰余金の配当など）は、△が付いていても正の数で書け。
+7. 前期と当期の両方がある表では prev と cur に分けよ。一期しかなければ cur に書き、prev は null。
+8. 連結財務諸表と個別（単体）財務諸表の両方がある資料（有価証券報告書など）では、個別（単体）の財務諸表の数値を抽出せよ。連結の数値を単体の欄に入れてはならない。page には個別財務諸表の頁を書け。
+9. 有価証券報告書の「主要な経営指標等の推移」にある提出会社（単体）の売上高・当期純利益・純資産額・総資産額は、k_sales・k_ni・k_na・k_ta として別に抽出せよ（本表との照合に使う）。
+10. すべての行の section に、その行が属する表・区分の名前を書け。販売費及び一般管理費の注記が「販売費」と「一般管理費」に分けて記載されている場合は、
+    同じ科目でも区分ごとに別の行として出し、section に「販売費」または「一般管理費」と書け。合計は計算するな（合計はプログラムが出す）。
+
+標準科目一覧（key: 標準科目名［表・区分］ 別名）：
+{catalog}
+"""
+
+
+def _mime(filename: str) -> str | None:
+    ext = Path(filename).suffix.lower()
+    return {
+        ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".webp": "image/webp", ".heic": "image/heic", ".heif": "image/heif",
+    }.get(ext)
+
+
+def excel_to_text(content: bytes) -> str:
+    """Excel をシートごとのタブ区切りテキストにする（Gemini は xlsx を直接読めないため）。計算結果の値を使う。"""
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+    out = []
+    for ws in wb.worksheets:
+        out.append(f"### シート：{ws.title}")
+        for row in ws.iter_rows(values_only=True):
+            if any(v is not None for v in row):
+                out.append("\t".join("" if v is None else str(v) for v in row))
+    return "\n".join(out)
+
+
+def to_parts(filename: str, content: bytes):
+    """ファイルを Gemini に渡す部品（Part または文字列）に変換する。"""
+    from google.genai import types
+
+    ext = Path(filename).suffix.lower()
+    if ext in (".xlsx", ".xlsm"):
+        return [f"【資料：{filename}（Excelをテキスト化。出典頁にはシート名を書くこと）】\n" + excel_to_text(content)]
+    if ext in (".csv", ".txt", ".tsv", ".md"):
+        return [f"【資料：{filename}】\n" + content.decode("utf-8", errors="replace")]
+    mime = _mime(filename)
+    if mime is None:
+        raise ValueError(f"読み取りに対応していない形式です：{ext or '拡張子なし'}（PDF・Excel・画像・CSVに対応）")
+    return [types.Part.from_bytes(data=content, mime_type=mime)]
+
+
+class GeminiExtractor:
+    """Gemini のマルチモーダル入力と構造化出力（JSON）で抽出する。"""
+
+    def __init__(self, client=None, model: str | None = None):
+        self.model = model or config.gemini_model()
+        self.name = f"gemini:{self.model}"
+        self._client = client
+
+    @property
+    def client(self):
+        if self._client is None:
+            from google import genai
+
+            self._client = genai.Client(api_key=config.gemini_api_key())
+        return self._client
+
+    def extract(self, filename: str, content: bytes) -> Extraction:
+        import logging
+
+        from google.genai import types
+
+        # SDK は GOOGLE_API_KEY と GEMINI_API_KEY の両方があると「GOOGLE_API_KEY を使う」と表示するが、
+        # 実際にはここで明示的に渡したキー（config.gemini_api_key：GEMINI_API_KEY 優先）が使われる。紛らわしいので黙らせる
+        logging.getLogger("google_genai._api_client").setLevel(logging.ERROR)
+        prompt = PROMPT.format(catalog=sa.catalog_text())
+        resp = self.client.models.generate_content(
+            model=self.model,
+            contents=to_parts(filename, content) + [prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=Extraction,
+                temperature=0,
+                # 関数呼び出しは使わない（SDK の注意表示も止める）
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            ),
+        )
+        parsed = getattr(resp, "parsed", None)
+        if isinstance(parsed, Extraction):
+            return parsed
+        return Extraction.model_validate_json(resp.text)
+
+
+class MockExtractor:
+    """APIキーがないときの代役。投入ファイルの中身は読まず、制作サンプル（アルファ製菓 第73期 単体）を返す。"""
+
+    name = "mock"
+
+    def __init__(self, sample_path: Path = SAMPLE_FINANCIALS):
+        self.sample_path = sample_path
+
+    def extract(self, filename: str, content: bytes) -> Extraction:
+        fin = json.loads(self.sample_path.read_text(encoding="utf-8"))
+        items = [ExtractedItem(key=k, source_label=v.get("source_label") or v["label"], prev=v.get("prev"),
+                               cur=v.get("cur"), page=(v.get("source") or {}).get("page"))
+                 for k, v in fin["items"].items()]
+        return Extraction(document_type="有価証券報告書（制作サンプル）", company_name="アルファ製菓（制作サンプル）",
+                          fiscal_period=fin["fiscal_period"], unit=fin["unit"], rounding="千円未満切捨て", items=items)
+
+
+def get_extractor() -> Extractor:
+    return GeminiExtractor() if config.extractor_mode() == "gemini" else MockExtractor()
+
+
+# ---------------------------------------------------------------------------
+# 正規化（LLM の出力を検証して Financials にする）
+# ---------------------------------------------------------------------------
+class IngestReport(BaseModel):
+    extractor: str
+    is_mock: bool
+    document_type: str
+    unit: str | None
+    rounding: str
+    n_items: int
+    n_values: int
+    unverified: list[str] = Field(default_factory=list)  # 値が null の標準科目
+    remapped: list[str] = Field(default_factory=list)  # 別名辞書で当てはめ直したもの
+    dropped: list[str] = Field(default_factory=list)  # 標準科目に当てはまらず捨てたもの
+    duplicates: list[str] = Field(default_factory=list)
+    unreadable: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+def _rounding(unit: str | None, note: str | None) -> tuple[str, list[str]]:
+    warns = []
+    u = (unit or "").strip()
+    if u == "円":
+        return "yen", warns
+    if u in ("千円", "百万円"):
+        if note and "四捨五入" in note:
+            return "round_thousand", warns
+        if not note:
+            warns.append("端数処理の記載がないため、切捨てとみなして許容差を設定しました")
+        return "truncate_thousand", warns
+    warns.append("単位が判読できません。千円・切捨てとみなしますが、検算結果は参考扱いにしてください")
+    return "truncate_thousand", warns
+
+
+SELLING, ADMIN = "販売費", "一般管理費"
+
+
+def _section_kind(section: str | None) -> str | None:
+    """区分名を「販売費」「一般管理費」に寄せる。どちらでもなければ None。"""
+    s = "".join((section or "").split())
+    if not s:
+        return None
+    if "一般管理費" in s and "販売費" in s:
+        return None  # 「販売費及び一般管理費」は合計の表で、どちらか一方ではない
+    if "一般管理費" in s or s in ("管理費",):
+        return ADMIN
+    if "販売費" in s:
+        return SELLING
+    return None
+
+
+def _merge_rows(key: str, rows: list[ExtractedItem]) -> tuple[dict, list, str]:
+    """同じ標準科目に当たった複数の行をまとめる。戻り値：（値, 内訳, 説明）。
+
+    1. 値がすべて同じ → 一つにまとめる
+    2. 販管費内訳の科目が「販売費」と「一般管理費」に分かれている → 区分ごとに保持し、合計を採用
+    3. それ以外で値が食い違う → 推測で選ばず null（未確認）
+    """
+    def distinct(rs, period):
+        return {getattr(r, period) for r in rs if getattr(r, period) is not None}
+
+    if all(len(distinct(rows, p)) <= 1 for p in ("prev", "cur")):
+        vals = {p: next(iter(distinct(rows, p)), None) for p in ("prev", "cur")}
+        return vals, [], "同じ値のため統合"
+
+    by_kind: dict[str, list[ExtractedItem]] = {}
+    for r in rows:
+        by_kind.setdefault(_section_kind(r.section) or "?", []).append(r)
+    if (sa.META[key][0] == "販管費内訳" and set(by_kind) == {SELLING, ADMIN}
+            and all(all(len(distinct(rs, p)) <= 1 for p in ("prev", "cur")) for rs in by_kind.values())):
+        parts = {k: {p: next(iter(distinct(rs, p)), None) for p in ("prev", "cur")} for k, rs in by_kind.items()}
+        vals = {}
+        for p in ("prev", "cur"):
+            a, b = parts[SELLING][p], parts[ADMIN][p]
+            vals[p] = None if a is None or b is None else a + b  # 片方が欠ければ合計は出さない（推測しない）
+        comps = [{"section": k, "source_label": by_kind[k][0].source_label, "prev": parts[k]["prev"],
+                  "cur": parts[k]["cur"], "page": by_kind[k][0].page} for k in (SELLING, ADMIN)]
+        cur_txt = (f"当期 {parts[SELLING]['cur']:,}＋{parts[ADMIN]['cur']:,}＝{vals['cur']:,}"
+                   if vals["cur"] is not None else "当期は片方が未確認のため合計せず")
+        return vals, comps, f"販売費と一般管理費に区分開示 → 合計を採用（{cur_txt}）"
+
+    kinds = "・".join(sorted({(r.section or "区分不明") for r in rows}))
+    return {"prev": None, "cur": None} | {p: (next(iter(distinct(rows, p))) if len(distinct(rows, p)) == 1 else None)
+                                           for p in ("prev", "cur")}, [], f"値が食い違うため未確認（区分：{kinds}）"
+
+
+def normalize(ex: Extraction, filename: str, company_id: str, extractor: str) -> tuple[Financials, IngestReport]:
+    """LLM の出力を検証して Financials にする。
+
+    - キーは標準科目の一覧で検証し、未知のキーは別名辞書で当てはめ直す。それでも当たらなければ捨てて報告する
+    - 符号の約束（POSITIVE_MAGNITUDE）に反する負の数は、正の数に直して報告する
+    - 同じ標準科目に複数の行が当たったときの扱いは _merge_rows（区分開示は合計、食い違いは未確認）
+    """
+    rounding, warns = _rounding(ex.unit, ex.rounding)
+    remapped, dropped, dups = [], [], []
+    cands: dict[str, list[ExtractedItem]] = {}
+    for it in ex.items:
+        key = it.key if it.key in sa.KEYS else None
+        if key is None:
+            key = sa.key_for_label(it.source_label)
+            if key is None:
+                dropped.append(f"{it.source_label}（key={it.key}）")
+                continue
+            remapped.append(f"{it.source_label} → {sa.LABELS[key]}")
+        if key in sa.POSITIVE_MAGNITUDE:
+            for period in ("prev", "cur"):
+                v = getattr(it, period)
+                if v is not None and v < 0:
+                    it = it.model_copy(update={period: -v})
+                    remapped.append(f"{sa.LABELS[key]}（{'前期' if period == 'prev' else '当期'}）の符号を正に統一（{v:,} → {-v:,}）")
+        cands.setdefault(key, []).append(it)
+
+    items: dict[str, LineItem] = {}
+    for key, rows in cands.items():
+        if len(rows) == 1:
+            values, comps, note = {"prev": rows[0].prev, "cur": rows[0].cur}, [], ""
+        else:
+            values, comps, note = _merge_rows(key, rows)
+            detail = "／".join(f"{r.section or '区分不明'}：{r.source_label} 前期{r.prev if r.prev is not None else '—'}・"
+                               f"当期{r.cur if r.cur is not None else '—'}（p.{r.page or '？'}）" for r in rows)
+            dups.append(f"{sa.LABELS[key]}：{note}　{detail}")
+        first = rows[0]
+        st, sec = sa.META[key]
+        items[key] = LineItem(statement=st, section=sec, label=sa.LABELS[key], source_label=first.source_label,
+                              prev=values["prev"], cur=values["cur"], is_total=key in sa.TOTAL_KEYS,
+                              source=SourceRef(file=filename, page=first.page), note=note,
+                              breakdown=comps)
+    if any("食い違う" in d for d in dups):
+        warns.append("同じ標準科目に値の異なる行が複数当たりました。区分を確かめられないため、推測で選ばず未確認にしました")
+    unverified = [sa.LABELS[k] for k, v in items.items() if v.prev is None and v.cur is None]
+    fin = Financials(company_id=company_id, fiscal_period=ex.fiscal_period or "（期間不明）", basis="投入資料",
+                     unit=ex.unit or "千円", rounding=rounding, rounding_note=ex.rounding or "",
+                     documents={filename: {"title": filename, "document_type": ex.document_type}}, items=items)
+    report = IngestReport(extractor=extractor, is_mock=extractor == "mock", document_type=ex.document_type,
+                          unit=ex.unit, rounding=rounding, n_items=len(items),
+                          n_values=sum(1 for v in items.values() if v.cur is not None or v.prev is not None),
+                          unverified=unverified, remapped=remapped, dropped=dropped, duplicates=dups,
+                          unreadable=list(ex.unreadable), warnings=warns)
+    return fin, report
+
+
+# ---------------------------------------------------------------------------
+# パイプライン
+# ---------------------------------------------------------------------------
+FULL_STATEMENT_KEYS = ("ta", "tle", "sales", "ni")
+
+
+class IngestOutcome(BaseModel):
+    financials: Financials
+    report: IngestReport
+    reconciliation: ReconciliationReport | None = None
+    gate: str  # "通過" / "停止" / "対象外"
+
+    def summary(self) -> str:
+        r = self.report
+        s = f"標準科目{r.n_items}件を抽出（値あり{r.n_values}件、未確認{len(r.unverified)}件）"
+        if r.dropped:
+            s += f"、当てはまらず除外{len(r.dropped)}件"
+        if self.gate == "対象外":
+            return s + "。財務諸表一式ではないため、検算ゲートの対象外です"
+        rec = self.reconciliation
+        if self.gate == "通過":
+            return s + f"。検算ゲート：全{rec.total}項目中 一致{rec.count('一致')}、未確認{rec.count('未確認')}、不一致0"
+        return s + f"。検算ゲート：不一致{rec.count('不一致')}件のため停止します（論争に進みません）"
+
+
+def ingest(filename: str, content: bytes, company_id: str, extractor: Extractor | None = None) -> IngestOutcome:
+    """ファイルを読み取り、標準科目に構造化し、財務諸表一式なら検算ゲートにかける。"""
+    extractor = extractor or get_extractor()
+    ex = extractor.extract(filename, content)
+    fin, report = normalize(ex, filename, company_id, extractor.name)
+    if all(k in fin.items for k in FULL_STATEMENT_KEYS):
+        rec = reconcile(fin)
+        gate = "通過" if rec.passed else "停止"
+        return IngestOutcome(financials=fin, report=report, reconciliation=rec, gate=gate)
+    return IngestOutcome(financials=fin, report=report, gate="対象外")
+
+
+def merge_missing(base: Financials, new: Financials) -> tuple[Financials, list[str]]:
+    """base に欠けている科目・期だけを new で埋める。既存の値は上書きしない（CLAUDE.md 6.9）。
+
+    戻り値：（統合後、食い違いの一覧）。単位が違う場合は統合せず、その旨を返す。
+    """
+    if base.unit != new.unit:
+        return base, [f"単位が異なるため統合しません（既存：{base.unit}、投入資料：{new.unit}）"]
+    merged = base.model_copy(deep=True)
+    conflicts = []
+    for key, item in new.items.items():
+        if key not in merged.items:
+            merged.items[key] = item
+            continue
+        cur = merged.items[key]
+        for period in ("prev", "cur"):
+            a, b = getattr(cur, period), getattr(item, period)
+            if a is None and b is not None:
+                setattr(cur, period, b)
+            elif a is not None and b is not None and a != b:
+                conflicts.append(f"{cur.label}（{'前期' if period == 'prev' else '当期'}）：既存 {a:,}／投入資料 {b:,}")
+    return merged, conflicts

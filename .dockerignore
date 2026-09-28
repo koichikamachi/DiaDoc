@@ -1,0 +1,22 @@
+# 秘密情報（イメージに入れない。Cloud Run では Secret Manager から渡す）
+.env
+.env.*
+*.env
+secrets/
+*.key
+*.pem
+service-account*.json
+credentials*.json
+client_secret*.json
+# 不要なもの
+.git
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+tests
+desktop.ini
+Thumbs.db
+.DS_Store
+*.md
+!deploy.md

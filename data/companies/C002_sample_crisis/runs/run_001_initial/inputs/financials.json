@@ -1,0 +1,2182 @@
+{
+ "company_id": "C002",
+ "fiscal_period": "第62期（架空。2025年4月1日〜2026年3月31日）",
+ "basis": "単体",
+ "unit": "千円",
+ "rounding": "truncate_thousand",
+ "rounding_note": "架空モデル。内訳から合計を積み上げて作ったため、端数差は生じない",
+ "documents": {
+  "決算報告書第62期（架空）": {
+   "title": "架空モデル 第62期 決算報告書（貸借対照表・損益計算書・製造原価報告書・株主資本等変動計算書・販管費内訳）"
+  },
+  "勘定科目内訳明細書第62期（架空）": {
+   "title": "架空モデル 第62期 勘定科目内訳明細書"
+  },
+  "金融機関向け決算概要第62期（架空）": {
+   "title": "架空モデル 第62期 金融機関向け決算概要"
+  }
+ },
+ "items": {
+  "cash": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "現金預金",
+   "source_label": "現金預金",
+   "prev": 96000,
+   "cur": 51000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "nr": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "受取手形",
+   "source_label": "受取手形",
+   "prev": 22000,
+   "cur": 18000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ar": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "売掛金",
+   "source_label": "売掛金",
+   "prev": 221000,
+   "cur": 196000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "rm": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "原材料",
+   "source_label": "原材料",
+   "prev": 44000,
+   "cur": 41000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "pp": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "前払費用",
+   "source_label": "前払費用",
+   "prev": 3400,
+   "cur": 3200,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "oca": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "その他流動資産",
+   "source_label": "その他流動資産",
+   "prev": 5800,
+   "cur": 6800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ada1": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "貸倒引当金（流動）",
+   "source_label": "貸倒引当金（流動）",
+   "prev": -1100,
+   "cur": -1000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "bld": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "建物",
+   "source_label": "建物",
+   "prev": 136000,
+   "cur": 128000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "str": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "構築物",
+   "source_label": "構築物",
+   "prev": 10300,
+   "cur": 9500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "mac": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "機械装置",
+   "source_label": "機械装置",
+   "prev": 172000,
+   "cur": 146000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "veh": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "車両運搬具",
+   "source_label": "車両運搬具",
+   "prev": 7900,
+   "cur": 6200,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tool": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "工具器具備品",
+   "source_label": "工具器具備品",
+   "prev": 5200,
+   "cur": 4300,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "land": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "土地",
+   "source_label": "土地",
+   "prev": 152000,
+   "cur": 152000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "lease": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "リース資産",
+   "source_label": "リース資産",
+   "prev": 18500,
+   "cur": 13800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "cip": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "建設仮勘定",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "sw": {
+   "statement": "BS",
+   "section": "無形固定資産",
+   "label": "ソフトウェア",
+   "source_label": "ソフトウェア",
+   "prev": 2900,
+   "cur": 2100,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "oint": {
+   "statement": "BS",
+   "section": "無形固定資産",
+   "label": "その他無形",
+   "source_label": "その他無形",
+   "prev": 600,
+   "cur": 600,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "inv": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "投資有価証券",
+   "source_label": "投資有価証券",
+   "prev": 8100,
+   "cur": 8400,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "aff": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "関係会社株式",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "cap": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "出資金",
+   "source_label": "出資金",
+   "prev": 1000,
+   "cur": 1000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ltl": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "長期貸付金",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "ltpp": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "長期前払費用",
+   "source_label": "長期前払費用",
+   "prev": 1500,
+   "cur": 1200,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "dep": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "差入保証金",
+   "source_label": "差入保証金",
+   "prev": 3600,
+   "cur": 3600,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "oinv": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "その他投資",
+   "source_label": "その他投資",
+   "prev": 43090,
+   "cur": 13800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ada2": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "貸倒引当金（固定）",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "ap": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "買掛金",
+   "source_label": "買掛金",
+   "prev": 141000,
+   "cur": 128000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "stl": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "短期借入金",
+   "source_label": "短期借入金",
+   "prev": 150000,
+   "cur": 180000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "cltd": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "1年内返済長期借入金",
+   "source_label": "1年内返済長期借入金",
+   "prev": 92000,
+   "cur": 96000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "cbond": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "1年内償還社債",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "cls": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "リース債務（流動）",
+   "source_label": "リース債務（流動）",
+   "prev": 4600,
+   "cur": 4800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "oap": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "未払金",
+   "source_label": "未払金",
+   "prev": 23000,
+   "cur": 21000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "acc": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "未払費用",
+   "source_label": "未払費用",
+   "prev": 15000,
+   "cur": 14000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "refund": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "返金負債",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "tax": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "未払法人税等",
+   "source_label": "未払法人税等",
+   "prev": 290,
+   "cur": 290,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ctax": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "未払消費税",
+   "source_label": "未払消費税",
+   "prev": 8100,
+   "cur": 6500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "wh": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "預り金",
+   "source_label": "預り金",
+   "prev": 3300,
+   "cur": 3200,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "dr": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "前受収益",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "bonus": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "賞与引当金",
+   "source_label": "賞与引当金",
+   "prev": 9000,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ocl": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "その他流動負債",
+   "source_label": "その他流動負債",
+   "prev": 2600,
+   "cur": 2400,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "bond": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "社債",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "ltd": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "長期借入金",
+   "source_label": "長期借入金",
+   "prev": 408000,
+   "cur": 312000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ltdep": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "長期預り保証金",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "lls": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "リース債務（固定）",
+   "source_label": "リース債務（固定）",
+   "prev": 14400,
+   "cur": 9600,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ret": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "退職給付引当金",
+   "source_label": "退職給付引当金",
+   "prev": 41000,
+   "cur": 38000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "sbp": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "役員株式給付引当金",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "dtl": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "繰延税金負債",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "oltl": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "その他固定負債",
+   "source_label": "その他固定負債",
+   "prev": 20000,
+   "cur": 30000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "cs": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "資本金",
+   "source_label": "資本金",
+   "prev": 30000,
+   "cur": 30000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "csr": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "資本準備金",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "lr": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "利益準備金",
+   "source_label": "利益準備金",
+   "prev": 7500,
+   "cur": 7500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "gr": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "別途積立金",
+   "source_label": "別途積立金",
+   "prev": 20000,
+   "cur": 20000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ts": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "自己株式",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "oci": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "評価差額金",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "sales": {
+   "statement": "PL",
+   "section": "売上",
+   "label": "売上高",
+   "source_label": "売上高",
+   "prev": 1320000,
+   "cur": 1180000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "sell": {
+   "statement": "PL",
+   "section": "販管費",
+   "label": "販売費",
+   "source_label": "販売費",
+   "prev": 62000,
+   "cur": 58000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "adm": {
+   "statement": "PL",
+   "section": "販管費",
+   "label": "一般管理費",
+   "source_label": "一般管理費",
+   "prev": 101000,
+   "cur": 96000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "ii": {
+   "statement": "PL",
+   "section": "営業外収益",
+   "label": "受取利息",
+   "source_label": "受取利息",
+   "prev": 30,
+   "cur": 20,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "div": {
+   "statement": "PL",
+   "section": "営業外収益",
+   "label": "受取配当金",
+   "source_label": "受取配当金",
+   "prev": 150,
+   "cur": 150,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "ooi": {
+   "statement": "PL",
+   "section": "営業外収益",
+   "label": "雑収入",
+   "source_label": "雑収入",
+   "prev": 4820,
+   "cur": 3830,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "ie": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "支払利息",
+   "source_label": "支払利息",
+   "prev": 15600,
+   "cur": 16800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "bde": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "貸倒引当金繰入額",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "idle": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "休止固定資産減価償却費",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "ooe": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "雑損失",
+   "source_label": "雑損失",
+   "prev": 1400,
+   "cur": 1200,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "sg1": {
+   "statement": "PL",
+   "section": "特別利益",
+   "label": "固定資産売却益",
+   "source_label": "固定資産売却益",
+   "prev": 2000,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "sg2": {
+   "statement": "PL",
+   "section": "特別利益",
+   "label": "投資有価証券売却益",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "sl1": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "固定資産除却損",
+   "source_label": "固定資産除却損",
+   "prev": 800,
+   "cur": 1500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "sl2": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "固定資産売却損",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "sl3": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "投資有価証券評価損",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "sl4": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "リース解約損",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "sl5": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "解決金",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "ctx": {
+   "statement": "PL",
+   "section": "税金",
+   "label": "法人税、住民税及び事業税",
+   "source_label": "法人税、住民税及び事業税",
+   "prev": 290,
+   "cur": 290,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "dtx": {
+   "statement": "PL",
+   "section": "税金",
+   "label": "法人税等調整額",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "mat": {
+   "statement": "製造原価",
+   "section": "製造費用",
+   "label": "材料費",
+   "source_label": "材料費",
+   "prev": 575000,
+   "cur": 520000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "lab": {
+   "statement": "製造原価",
+   "section": "製造費用",
+   "label": "労務費",
+   "source_label": "労務費",
+   "prev": 312000,
+   "cur": 300000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "exp": {
+   "statement": "製造原価",
+   "section": "製造費用",
+   "label": "経費",
+   "source_label": "経費",
+   "prev": 246000,
+   "cur": 240000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "e_dep": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "減価償却費（製造）",
+   "source_label": "減価償却費（製造）",
+   "prev": 45000,
+   "cur": 42000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "e_pow": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "電力費",
+   "source_label": "電力費",
+   "prev": 36000,
+   "cur": 38000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "e_rep": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "修繕費（製造）",
+   "source_label": "修繕費（製造）",
+   "prev": 15000,
+   "cur": 16000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "e_fuel": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "燃料費",
+   "source_label": "燃料費",
+   "prev": 9500,
+   "cur": 9000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "e_sup": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "消耗器具備品費",
+   "source_label": "消耗器具備品費",
+   "prev": 11500,
+   "cur": 11000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "bwip": {
+   "statement": "製造原価",
+   "section": "仕掛品",
+   "label": "期首仕掛品",
+   "source_label": "期首仕掛品",
+   "prev": 38000,
+   "cur": 36000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "ewip": {
+   "statement": "製造原価",
+   "section": "仕掛品",
+   "label": "期末仕掛品",
+   "source_label": "期末仕掛品",
+   "prev": 36000,
+   "cur": 33000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "bfg": {
+   "statement": "売上原価調整",
+   "section": "製品",
+   "label": "期首製品",
+   "source_label": "期首製品",
+   "prev": 61000,
+   "cur": 58000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "pur": {
+   "statement": "売上原価調整",
+   "section": "商品",
+   "label": "当期商品仕入高",
+   "source_label": "当期商品仕入高",
+   "prev": 14000,
+   "cur": 12000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "trf": {
+   "statement": "売上原価調整",
+   "section": "振替",
+   "label": "他勘定振替高",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "efg": {
+   "statement": "売上原価調整",
+   "section": "製品",
+   "label": "期末製品",
+   "source_label": "期末製品",
+   "prev": 58000,
+   "cur": 52000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "emd": {
+   "statement": "売上原価調整",
+   "section": "商品",
+   "label": "期末商品",
+   "source_label": "（記載なし）",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "該当なし（0）",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": "架空モデルの決算書にこの行はない。検算のため0として置く"
+  },
+  "dvd": {
+   "statement": "株主資本等変動",
+   "section": "繰越利益剰余金",
+   "label": "剰余金の配当",
+   "source_label": "剰余金の配当",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "5"
+   },
+   "note": ""
+  },
+  "grt": {
+   "statement": "株主資本等変動",
+   "section": "繰越利益剰余金",
+   "label": "別途積立金の積立",
+   "source_label": "別途積立金の積立",
+   "prev": 0,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "5"
+   },
+   "note": ""
+  },
+  "officer_loan": {
+   "statement": "勘定科目内訳",
+   "section": "監視科目",
+   "label": "役員借入金",
+   "source_label": "役員借入金",
+   "prev": 20000,
+   "cur": 30000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "勘定科目内訳明細書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "suspense": {
+   "statement": "勘定科目内訳",
+   "section": "監視科目",
+   "label": "仮払金",
+   "source_label": "仮払金",
+   "prev": 900,
+   "cur": 2300,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "勘定科目内訳明細書第62期（架空）",
+    "page": "1"
+   },
+   "note": ""
+  },
+  "ins_reserve": {
+   "statement": "勘定科目内訳",
+   "section": "監視科目",
+   "label": "保険積立金",
+   "source_label": "保険積立金",
+   "prev": 43090,
+   "cur": 13800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "勘定科目内訳明細書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "sga_officer": {
+   "statement": "販管費内訳",
+   "section": "人件費",
+   "label": "役員報酬",
+   "source_label": "役員報酬",
+   "prev": 18000,
+   "cur": 18000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_salary": {
+   "statement": "販管費内訳",
+   "section": "人件費",
+   "label": "給料手当",
+   "source_label": "給料手当",
+   "prev": 55000,
+   "cur": 52000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_bonus": {
+   "statement": "販管費内訳",
+   "section": "人件費",
+   "label": "賞与・賞与引当金繰入額",
+   "source_label": "賞与・賞与引当金繰入額",
+   "prev": 4000,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_welfare_legal": {
+   "statement": "販管費内訳",
+   "section": "人件費",
+   "label": "法定福利費",
+   "source_label": "法定福利費",
+   "prev": 11600,
+   "cur": 11000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_welfare": {
+   "statement": "販管費内訳",
+   "section": "人件費",
+   "label": "福利厚生費",
+   "source_label": "福利厚生費",
+   "prev": 1900,
+   "cur": 1500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_freight": {
+   "statement": "販管費内訳",
+   "section": "物流",
+   "label": "荷造運賃",
+   "source_label": "荷造運賃",
+   "prev": 34000,
+   "cur": 31000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_dep": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "減価償却費（販管費）",
+   "source_label": "減価償却費（販管費）",
+   "prev": 6500,
+   "cur": 6000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_rent": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "地代家賃",
+   "source_label": "地代家賃",
+   "prev": 4800,
+   "cur": 4800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_lease": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "賃借料",
+   "source_label": "賃借料",
+   "prev": 3600,
+   "cur": 3600,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_insurance": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "保険料",
+   "source_label": "保険料",
+   "prev": 3900,
+   "cur": 2400,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_tax": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "租税公課",
+   "source_label": "租税公課",
+   "prev": 3200,
+   "cur": 3100,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_fee": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "支払手数料",
+   "source_label": "支払手数料",
+   "prev": 5300,
+   "cur": 5500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_util": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "水道光熱費",
+   "source_label": "水道光熱費",
+   "prev": 2900,
+   "cur": 2800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_travel": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "旅費交通費",
+   "source_label": "旅費交通費",
+   "prev": 2700,
+   "cur": 2200,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_comm": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "通信費",
+   "source_label": "通信費",
+   "prev": 1400,
+   "cur": 1300,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_entertain": {
+   "statement": "販管費内訳",
+   "section": "販売",
+   "label": "交際費",
+   "source_label": "交際費",
+   "prev": 1500,
+   "cur": 900,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "sga_adv": {
+   "statement": "販管費内訳",
+   "section": "販売促進",
+   "label": "広告宣伝費",
+   "source_label": "広告宣伝費",
+   "prev": 900,
+   "cur": 600,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "tmc": {
+   "statement": "製造原価",
+   "section": "製造費用",
+   "label": "当期総製造費用",
+   "source_label": "当期総製造費用",
+   "prev": 1133000,
+   "cur": 1060000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "cgm": {
+   "statement": "製造原価",
+   "section": "製品",
+   "label": "当期製品製造原価",
+   "source_label": "当期製品製造原価",
+   "prev": 1135000,
+   "cur": 1063000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "4"
+   },
+   "note": ""
+  },
+  "cogs": {
+   "statement": "PL",
+   "section": "売上原価",
+   "label": "売上原価",
+   "source_label": "売上原価",
+   "prev": 1152000,
+   "cur": 1081000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "fg": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "製品・商品",
+   "source_label": "製品・商品",
+   "prev": 58000,
+   "cur": 52000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "wip": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "仕掛品",
+   "source_label": "仕掛品",
+   "prev": 36000,
+   "cur": 33000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "gp": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "売上総利益",
+   "source_label": "売上総利益",
+   "prev": 168000,
+   "cur": 99000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "sga": {
+   "statement": "PL",
+   "section": "販管費",
+   "label": "販管費合計",
+   "source_label": "販管費合計",
+   "prev": 163000,
+   "cur": 154000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "sga_misc": {
+   "statement": "販管費内訳",
+   "section": "一般",
+   "label": "雑費",
+   "source_label": "雑費",
+   "prev": 1800,
+   "cur": 7300,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "6"
+   },
+   "note": ""
+  },
+  "op": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "営業利益",
+   "source_label": "営業利益",
+   "prev": 5000,
+   "cur": -55000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "tnoi": {
+   "statement": "PL",
+   "section": "営業外収益",
+   "label": "営業外収益合計",
+   "source_label": "営業外収益合計",
+   "prev": 5000,
+   "cur": 4000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "tnoe": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "営業外費用合計",
+   "source_label": "営業外費用合計",
+   "prev": 17000,
+   "cur": 18000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "ord": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "経常利益",
+   "source_label": "経常利益",
+   "prev": -7000,
+   "cur": -69000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "tsg": {
+   "statement": "PL",
+   "section": "特別利益",
+   "label": "特別利益合計",
+   "source_label": "特別利益合計",
+   "prev": 2000,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "tsl": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "特別損失合計",
+   "source_label": "特別損失合計",
+   "prev": 800,
+   "cur": 1500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "pbt": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "税引前当期純利益",
+   "source_label": "税引前当期純利益",
+   "prev": -5800,
+   "cur": -70500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "ttx": {
+   "statement": "PL",
+   "section": "税金",
+   "label": "法人税等合計",
+   "source_label": "法人税等合計",
+   "prev": 290,
+   "cur": 290,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "ni": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "当期純利益",
+   "source_label": "当期純利益",
+   "prev": -6090,
+   "cur": -70790,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "3"
+   },
+   "note": ""
+  },
+  "re": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "繰越利益剰余金",
+   "source_label": "繰越利益剰余金",
+   "prev": 58000,
+   "cur": -12790,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tca": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "流動資産合計",
+   "source_label": "流動資産合計",
+   "prev": 485100,
+   "cur": 400000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tppe": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "有形固定資産合計",
+   "source_label": "有形固定資産合計",
+   "prev": 501900,
+   "cur": 459800,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tint": {
+   "statement": "BS",
+   "section": "無形固定資産",
+   "label": "無形固定資産合計",
+   "source_label": "無形固定資産合計",
+   "prev": 3500,
+   "cur": 2700,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tinv": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "投資その他の資産合計",
+   "source_label": "投資その他の資産合計",
+   "prev": 57290,
+   "cur": 28000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tfa": {
+   "statement": "BS",
+   "section": "固定資産",
+   "label": "固定資産合計",
+   "source_label": "固定資産合計",
+   "prev": 562690,
+   "cur": 490500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "ta": {
+   "statement": "BS",
+   "section": "資産",
+   "label": "資産合計",
+   "source_label": "資産合計",
+   "prev": 1047790,
+   "cur": 890500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tcl": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "流動負債合計",
+   "source_label": "流動負債合計",
+   "prev": 448890,
+   "cur": 456190,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tltl": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "固定負債合計",
+   "source_label": "固定負債合計",
+   "prev": 483400,
+   "cur": 389600,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tl": {
+   "statement": "BS",
+   "section": "負債",
+   "label": "負債合計",
+   "source_label": "負債合計",
+   "prev": 932290,
+   "cur": 845790,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tre": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "利益剰余金合計",
+   "source_label": "利益剰余金合計",
+   "prev": 85500,
+   "cur": 14710,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tsh": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "株主資本合計",
+   "source_label": "株主資本合計",
+   "prev": 115500,
+   "cur": 44710,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tna": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "純資産合計",
+   "source_label": "純資産合計",
+   "prev": 115500,
+   "cur": 44710,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "tle": {
+   "statement": "BS",
+   "section": "負債純資産",
+   "label": "負債純資産合計",
+   "source_label": "負債純資産合計",
+   "prev": 1047790,
+   "cur": 890500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "決算報告書第62期（架空）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "k_sales": {
+   "statement": "主要経営指標",
+   "section": "照合",
+   "label": "売上高（指標欄）",
+   "source_label": "売上高（指標欄）",
+   "prev": 1320000,
+   "cur": 1180000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "金融機関向け決算概要第62期（架空）",
+    "page": "1"
+   },
+   "note": ""
+  },
+  "k_ni": {
+   "statement": "主要経営指標",
+   "section": "照合",
+   "label": "当期純利益（指標欄）",
+   "source_label": "当期純利益（指標欄）",
+   "prev": -6090,
+   "cur": -70790,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "金融機関向け決算概要第62期（架空）",
+    "page": "1"
+   },
+   "note": ""
+  },
+  "k_na": {
+   "statement": "主要経営指標",
+   "section": "照合",
+   "label": "純資産（指標欄）",
+   "source_label": "純資産（指標欄）",
+   "prev": 115500,
+   "cur": 44710,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "金融機関向け決算概要第62期（架空）",
+    "page": "1"
+   },
+   "note": ""
+  },
+  "k_ta": {
+   "statement": "主要経営指標",
+   "section": "照合",
+   "label": "総資産（指標欄）",
+   "source_label": "総資産（指標欄）",
+   "prev": 1047790,
+   "cur": 890500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "金融機関向け決算概要第62期（架空）",
+    "page": "1"
+   },
+   "note": ""
+  }
+ },
+ "supplementary": {}
+}

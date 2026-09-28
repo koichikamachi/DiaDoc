@@ -1,0 +1,13 @@
+{
+ "name": "同業平均（仮置き）",
+ "placeholder": true,
+ "note": "画面確認用の仮置き。Analyst Radar が業界統計から取得した値に置き換えるまで判断に使わない",
+ "ratios": {
+  "op_margin": 0.03,
+  "sga_ratio": 0.12,
+  "mat_ratio": 0.45,
+  "purchase_ratio": 0.02,
+  "equity_ratio": 0.35,
+  "div_dep": 0.02
+ }
+}
