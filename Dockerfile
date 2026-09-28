@@ -38,6 +38,11 @@ COPY .streamlit ./.streamlit
 COPY src ./src
 COPY data ./data
 
+# 日本語などのファイル名があると、Cloud Run がイメージを読み込めない（Container import failed）。
+# 見本のファイル名は英数字にし、表示名は inputs/titles.json に書く。紛れ込んでいたら、ここでビルドを止める
+RUN bad="$(find data src .streamlit | LC_ALL=C grep '[^ -~]' || true)"; \
+    if [ -n "$bad" ]; then echo "ファイル名に英数字以外があります（titles.json で表示名を持たせてください）:"; echo "$bad"; exit 1; fi
+
 # 念のため、見本に紛れ込んだ実行時ファイルを消す（.dockerignore でも除いている）
 RUN find data \( -name 'checkpoints.sqlite*' -o -name 'debate_trace.jsonl' -o -name 'adjustments.json' -o -name '*.tmp' \) -delete
 

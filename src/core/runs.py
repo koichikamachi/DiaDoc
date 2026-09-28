@@ -40,6 +40,17 @@ def data_dir() -> Path:
     return seed_dir()
 
 
+# 資料の表示名（ファイル名とは別に持つ）。同梱の見本は、Cloud Run が日本語のファイル名を含むイメージを
+# 読み込めないため、ファイル名を英数字にしてある。画面・出典・論争で使う名前は、ここに書いた日本語の名前。
+TITLES_FILE = "titles.json"
+
+
+def input_title(path: Path) -> str:
+    """投入資料の表示名（出典に使う資料名）。inputs/titles.json にあればその名前、なければファイル名の拡張子前。"""
+    titles = _read_json(path.parent / TITLES_FILE, {}) or {}
+    return titles.get(path.name) or path.stem
+
+
 class FrozenRunError(RuntimeError):
     """凍結済みの回次に書き込もうとした。"""
 
@@ -125,7 +136,7 @@ class Run:
 
     def inputs(self) -> list[Path]:
         d = self.path / "inputs"
-        return sorted(p for p in d.glob("*") if p.is_file()) if d.exists() else []
+        return sorted(p for p in d.glob("*") if p.is_file() and p.name != TITLES_FILE) if d.exists() else []
 
     # --- 書き込み（開いている回次のみ） --------------------------------------
     def write(self, name: str, data) -> None:

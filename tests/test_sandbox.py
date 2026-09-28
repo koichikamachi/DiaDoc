@@ -86,3 +86,22 @@ def test_read_only_seed_gives_a_writable_copy(demo):
     finally:
         for p in [demo, *demo.rglob("*")]:
             p.chmod(p.stat().st_mode | stat.S_IWUSR)
+
+
+def test_bundled_file_names_are_ascii():
+    """Cloud Run は日本語のファイル名を含むイメージを読み込めない。表示名は inputs/titles.json に持たせる。"""
+    bad = [str(p.relative_to(ROOT)) for base in ("data", "src", ".streamlit") for p in (ROOT / base).rglob("*")
+           if "__pycache__" not in p.parts and not p.name.isascii()]
+    assert bad == []
+
+
+def test_titles_give_japanese_source_names():
+    from agents.base import DebateContext
+    from core import digest
+    from core.runs import Run
+
+    run = Run("C002_sample_crisis", "run_001_initial")
+    ctx = DebateContext.from_run(run)
+    assert "ヒアリングメモ_第62期（架空）" in ctx.materials and "ヒアリングメモ_第62期（架空）" in ctx.registry
+    names = [d.name for d in digest.documents(run, ctx)]
+    assert "ヒアリングメモ_第62期（架空）" in names and "titles" not in names

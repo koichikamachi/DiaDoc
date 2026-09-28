@@ -16,7 +16,7 @@ from pathlib import Path
 
 from core import metrics
 from core.guardrails import reconcile, review_claim
-from core.runs import Run, latest_run, list_runs, now_iso, start_next_run
+from core.runs import Run, input_title, latest_run, list_runs, now_iso, start_next_run
 from schema import Claim, SourceRef
 
 DOC = "有報第73期"
@@ -447,7 +447,7 @@ def diff_from_parent(run: Run) -> dict | None:
     open_left = [r for r in after if r["status"] == "請求中"]
     return {
         "parent_label": parent.meta.label,
-        "inputs": [p.name for p in run.inputs()],
+        "inputs": [input_title(p) + p.suffix for p in run.inputs()],
         "changed_requests": [{"id": r["id"], "item": r["item"], "from": s, "to": r["status"]} for r, s in changed],
         "new_requests": [{"id": r["id"], "item": r["item"]} for r in new],
         "new_constraints": [c for c in rc if c not in pc],

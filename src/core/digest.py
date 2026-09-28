@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from core.runs import input_title
 from schema import TriageOption
 
 FINANCIAL_SUFFIXES = (".pdf", ".xlsx", ".xls", ".csv", ".png", ".jpg", ".jpeg")
@@ -63,12 +64,13 @@ def documents(run, ctx, state=None) -> list[DocEntry]:
     for r in reversed(chain):
         label = "この回次" if r.run_id == run.run_id else f"{r.meta.label}から引き継ぎ"
         for p in r.inputs():
-            if p.name == "financials.json" or p.stem in seen:
+            title = input_title(p)
+            if p.name == "financials.json" or title in seen:
                 continue
-            seen.add(p.stem)
-            rnd = added.get(p.stem)
+            seen.add(title)
+            rnd = added.get(title)
             origin = f"議論の途中で追加（第{rnd}ラウンド）" if rnd else label
-            out.append(DocEntry(name=p.stem, kind=_kind(p.name), origin=origin, citable=p.stem in ctx.registry,
+            out.append(DocEntry(name=title, kind=_kind(p.name), origin=origin, citable=title in ctx.registry,
                                 added_round=rnd, path=p))
     return out
 

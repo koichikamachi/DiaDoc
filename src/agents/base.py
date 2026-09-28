@@ -129,7 +129,7 @@ class DebateContext:
 
     @classmethod
     def from_run(cls, run) -> "DebateContext":
-        from core.runs import company_dir
+        from core.runs import company_dir, input_title
 
         meta = json.loads((company_dir(run.company) / "meta.json").read_text(encoding="utf-8"))
         fin = run.financials()
@@ -143,7 +143,7 @@ class DebateContext:
         for r in reversed(chain):
             for p in r.inputs():
                 if p.suffix.lower() in MATERIAL_SUFFIXES:
-                    materials[p.stem] = p.read_text(encoding="utf-8")[:MATERIAL_LIMIT]
+                    materials[input_title(p)] = p.read_text(encoding="utf-8")[:MATERIAL_LIMIT]
         script_path = company_dir(run.company) / "debate_script.json"
         script = json.loads(script_path.read_text(encoding="utf-8")) if script_path.exists() else None
         from core import adjust
