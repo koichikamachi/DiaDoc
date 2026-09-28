@@ -41,7 +41,11 @@ def next_in_round(phase: str, current: str) -> str:
 # ---------------------------------------------------------------------------
 # 機械の審査（出典の実在、形式、フェーズの規律、繰り返し）
 # ---------------------------------------------------------------------------
-def formal_review(msg: DebateMessage, state: DebateState, registry: set[str]) -> ReviewResult:
+def formal_review(msg: DebateMessage, state: DebateState, registry: set[str], citation_index=None) -> ReviewResult:
+    """形式審査（プログラム）。出典の実在、決着条件、因果ブリッジ、段階の規律、繰り返し、そして出典の照合。
+
+    citation_index（core.citations.build_index）を渡すと、発言の中の数字が引用した頁に本当にあるかも確かめる。
+    """
     reasons_pre: list[str] = []
     real = [s for s in msg.sources if (s.file or "") in registry]
     unknown = [s for s in msg.sources if (s.file or "") not in registry]
@@ -53,6 +57,10 @@ def formal_review(msg: DebateMessage, state: DebateState, registry: set[str]) ->
     if r.verdict != "通過":
         return ReviewResult(verdict=r.verdict, reasons=reasons, valid_sources=r.valid_sources)
     problems = g.phase_discipline(msg)
+    if citation_index:
+        from core import citations
+
+        problems += citations.check(" ".join(x for x in (msg.headline, msg.text) if x), real, citation_index)
     passed_before = {g._norm_text(m.text) for m in state.messages
                      for x in state.rulings if x.message_id == m.id and x.verdict == "通過" and m.speaker == msg.speaker}
     if g._norm_text(msg.text) in passed_before:
@@ -157,7 +165,7 @@ def build_graph(ctx: DebateContext, speaker: Speaker, policy: g.PhasePolicy = g.
         ruled = {r.message_id for r in state.rulings}
         targets = [m for m in state.messages if m.round == state.round and m.id not in ruled
                    and m.speaker not in ("judge", "human")]
-        formal = {m.id: formal_review(m, state, ctx.registry) for m in targets}
+        formal = {m.id: formal_review(m, state, ctx.registry, ctx.citation_index()) for m in targets}
         passed = [m for m in targets if formal[m.id].verdict == "通過"]
         jt = AGENTS["judge"].review(state, ctx, speaker, passed)
         content = {c.message_id: c for c in jt.reviews}

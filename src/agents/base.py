@@ -112,6 +112,15 @@ class DebateContext:
     mission: str | None = None                                 # 企業ごとの診断ミッションの初期値（meta.json）
     adjustments: list = field(default_factory=list)            # 実質化の調整（人間の入力。core.adjust）
 
+    def citation_index(self) -> dict:
+        """出典の照合に使う、資料の頁ごとの数字（core.citations）。資料が増えたら作り直す。"""
+        from core import citations
+
+        key = (id(self.fin), tuple(sorted(self.materials)))
+        if getattr(self, "_cite_key", None) != key:
+            self._cite_index, self._cite_key = citations.build_index(self.fin, self.materials), key
+        return self._cite_index
+
     @property
     def registry(self) -> set[str]:
         """引用してよい資料名。ここにない資料名を出典にした主張は審理に使わない。"""
@@ -296,6 +305,7 @@ def context_text(state: DebateState, ctx: DebateContext, recent: int = 14) -> st
 COMMON_RULES = """あなたは経営診断の論争に参加する専門家の一人です。守るべき規律：
 1. 数字は、文脈に示された資料・数字だけを使う。資料にない数字を作らない。金額は千円。
 2. 主張には必ず出典（引用できる資料の一覧にある資料名と頁）を付ける。一覧にない資料名は審理に使われない。
+   発言に書いた数字は、その数字が実際に書かれている頁を出典にする（ヒアリングメモの数字なら、ヒアリングメモの【p.N】）。プログラムが照合し、別の頁にある数字を取り違えて引用すると差し戻される。
 3. 主張には「何が観察されれば決着するか」（決着条件）を具体的に書く。「なし」「不明」は差し戻される。
 4. 相手に同意するだけの発言はしない。譲歩するときも、条件と数字を示す（馴れ合いの防止）。
 5. 資金の監視指標とフェーズはプログラムが計算・判定する。あなたはそれを変えられないし、反論の材料として使ってよい。
