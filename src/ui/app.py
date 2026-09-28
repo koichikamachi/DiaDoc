@@ -113,7 +113,7 @@ def sidebar() -> tuple[Run, str]:
                 ss.flash = f"{run.meta.label}の論争を最初からやり直します"
                 st.rerun()
         real = st.toggle("実質BSで見る", value=False,
-                         help="オフ：名目BS（制度会計・時価評価）　オン：実質BS（帳簿＋実質化の調整）")
+                         help="オフ：名目BS（帳簿どおり）　オン：実質BS（帳簿＋実質化の調整）")
 
         st.divider()
         read_eng = f"Gemini（{config.gemini_model()}）" if config.extractor_mode() == "gemini" else "モック"
