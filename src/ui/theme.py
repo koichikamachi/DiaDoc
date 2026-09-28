@@ -146,6 +146,8 @@ def inject() -> None:
 .dd-cmp-wrap {{ overflow-x:auto; margin:.3rem 0 .5rem; }}
 .dd-cmp {{ border-collapse:collapse; width:100%; table-layout:fixed; font-size:.78rem; color:var(--dd-ink); }}
 .dd-cmp th:first-child {{ width:6.2em; }}
+.dd-basis {{ table-layout:auto; font-size:.76rem; }}
+.dd-basis th:first-child {{ width:auto; }}
 .dd-cmp th, .dd-cmp td {{ border:1px solid var(--dd-hair); padding:.35rem .45rem; vertical-align:top; text-align:left; }}
 .dd-cmp thead th {{ background:var(--dd-wash); font-weight:800; }}
 .dd-cmp tbody th {{ color:var(--dd-ink2); font-weight:700; background:var(--dd-wash); }}

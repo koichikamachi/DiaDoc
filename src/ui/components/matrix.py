@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 import mock_data as md
+from core import indicators as ind
 from core import metrics
 from schema import Financials, ReconciliationReport
 
@@ -18,14 +19,6 @@ C_COMPANY = "#2a78d6"
 C_AVG = "#eb6834"
 C_BENCH = "#1baf7a"
 
-RATIO_ROWS = [
-    ("営業利益率", "op_margin", "p.93"),
-    ("販管費率", "sga_ratio", "p.93"),
-    ("材料費比率（製造費用に占める）", "mat_ratio", "p.94"),
-    ("商品仕入高比率（売上高に占める）", "purchase_ratio", "p.94"),
-    ("自己資本比率", "equity_ratio", "p.91–92（実質は推計）"),
-    ("経常利益に占める受取配当金", "div_dep", "p.93"),
-]
 PERIOD_LABEL = {"prev": "前期", "cur": "当期"}
 
 
@@ -34,13 +27,31 @@ def _oku(v: float) -> str:
 
 
 def _ratio_frame(fin: Financials, mode: str, benches: list[dict]) -> pd.DataFrame:
-    comp = metrics.company_ratios(fin, mode)
     rows = []
-    for label, key, src in RATIO_ROWS:
-        row = {"指標": label, "対象企業": comp[key] * 100}
+    for i in ind.RATIOS:
+        v = ind.evaluate(fin, i, mode)
+        row = {"指標": i.label, "対象企業": None if v.cur is None else v.cur * 100}
         for b in benches:
-            row[b["name"]] = b["ratios"].get(key, float("nan")) * 100
-        row["出典（対象企業）"] = src
+            row[b["name"]] = b["ratios"].get(i.key, float("nan")) * 100
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def _basis_frame(fin: Financials, mode: str, benches: list[dict]) -> pd.DataFrame:
+    """グラフの基礎数値：比率ごとに計算式、分子・分母の内訳（科目・金額・出典頁）、比較値とその出典。"""
+    rows = []
+    for i in ind.RATIOS:
+        v = ind.evaluate(fin, i, mode)
+        side = lambda parts: "＋".join(f"{p.label} {p.cur:,}（{p.source}）" for p in parts if p.cur is not None) or "—"
+        row = {"指標": i.label, "計算式": i.formula, "分子": side(v.num), "分母": side(v.den),
+               "対象企業": ind.fmt(i, v.cur)}
+        if v.note:
+            row["分母"] += "　※" + v.note.split("：")[0]
+        for b in benches:
+            val = b["ratios"].get(i.key)
+            row[b["name"]] = "—" if val is None else f"{val:.1%}"
+        row["比較値の出典"] = "仮置き（画面確認用。判断に使わない）" if any(b.get("placeholder") for b in benches) else \
+            "、".join(b.get("source", b["name"]) for b in benches)
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -95,7 +106,7 @@ def _recon_frame(report: ReconciliationReport) -> pd.DataFrame:
 def _render_recon(report: ReconciliationReport, fin: Financials, source_label: str) -> None:
     st.markdown("##### 自動検算ステータス")
     if report.passed and report.count("未確認") == 0:
-        st.success(f"全{report.total}項目一致　次工程へ進めます", icon=":material/check_circle:")
+        st.success(f"全{report.total}項目一致　この数字は論争の根拠に使えます", icon=":material/check_circle:")
     elif report.passed:
         st.warning(f"不一致0件、未確認{report.count('未確認')}件。未確認の項目は論争で使えません", icon=":material/help:")
     else:
@@ -104,10 +115,29 @@ def _render_recon(report: ReconciliationReport, fin: Financials, source_label: s
     k1.metric("一致", report.count("一致"))
     k2.metric("不一致", report.count("不一致"))
     k3.metric("未確認", report.count("未確認"))
-    k4.metric("端数差", report.rounding_diffs, help="許容差内に収まった差の件数（期ごとに数える）")
+    k4.metric("端数差", report.rounding_diffs,
+              help="千円未満切捨ての表示で生じた1〜2千円のずれを、許容差の内として一致とみなした件数（期ごとに数える）")
     rule = "円単位のため許容差0" if fin.rounding == "yen" else "許容差＝内訳件数n千円（最低2千円）"
     st.caption(f"規則：{rule}。{fin.rounding_note}")
     st.caption(f"検算対象：{source_label}（core.guardrails.reconcile の実行結果）")
+    with st.expander("この検算は何をしているか", icon=":material/help:"):
+        groups = {}
+        for c in report.checks:
+            groups.setdefault(c.group, []).append(c)
+        what = {"BS内訳": "貸借対照表の内訳の合計＝報告された合計（流動資産、固定資産、負債、純資産など）",
+                "貸借一致": "資産合計＝負債純資産合計、負債＋純資産＝負債純資産合計",
+                "段階利益": "売上総利益→営業利益→経常利益→税引前→当期純利益の積み上げ",
+                "原価の流れ": "材料費・労務費・経費→当期製品製造原価→売上原価",
+                "指標照合": "本表の数字＝主要な経営指標の欄の数字（売上高・純利益・純資産・総資産）",
+                "表間連携": "貸借対照表の仕掛品・製品＝製造原価明細書・売上原価の期末の数字",
+                "期首接続": "前期末の数字＝当期首の数字（棚卸資産、繰越利益剰余金、別途積立金）"}
+        st.markdown("読み取った数字どうしが、財務諸表の中で辻褄が合っているかを確かめています。"
+                    "一つでも不一致があれば、その資料の数字は論争に使いません（根拠がなければ止まる）。")
+        import html as _h
+        body = "".join(f"<tr><td>{_h.escape(g)}</td><td>{len(cs)}</td><td>{sum(1 for c in cs if c.status == '一致')}</td>"
+                       f"<td>{_h.escape(what.get(g, ''))}</td></tr>" for g, cs in groups.items())
+        st.html('<div class="dd-cmp-wrap"><table class="dd-cmp dd-basis"><thead><tr><th>種類</th><th>件数</th>'
+                f"<th>一致</th><th>確かめていること</th></tr></thead><tbody>{body}</tbody></table></div>")
     with st.expander("検算の明細"):
         df = _recon_frame(report)
         st.dataframe(df, hide_index=True, width="stretch", height=360)
@@ -129,6 +159,27 @@ def _render_requests(requests: list[dict]) -> None:
                 st.caption(f":material/attach_file: {rec['file']}（{rec['run']}）")
 
 
+def _render_kpis(fin: Financials, mode: str) -> None:
+    """全社共通の指標と、条件を満たすときだけの会社固有の指標。各指標に計算式・前期比・出典頁を添える。"""
+    items = ind.kpis(fin)
+    base = metrics.cash_base(fin)
+    rw = metrics.project(base, []).cash_runway_months
+    cols = st.columns(4)
+    for n, i in enumerate(items):
+        v = ind.evaluate(fin, i, mode)
+        help_ = f"{i.why}。計算式：{i.formula}\n\n内訳：{v.basis}" + (f"\n\n{v.note}" if v.note else "")
+        d = ind.delta_text(v)
+        cols[n % 4].metric(i.label, ind.fmt(i, v.cur), d, delta_color="off" if d else "normal", help=help_)
+        if n % 4 == 3:
+            cols = st.columns(4)
+    runway = "資金流出なし" if rw is None else f"{rw:.1f}か月"
+    cols[len(items) % 4].metric("残余月数（改善前）", runway,
+                                help="手元資金 ÷ 返済後の月間流出。\n\n" + "\n\n".join(base.basis))
+    st.caption("全社共通：売上高・営業利益率・総資産・自己資本比率・有利子負債・手許現預金・営業利益ROA・残余月数。"
+               "会社固有：受取配当金がある会社は受取配当依存、商品仕入がある会社は商品仕入高比率を加えています。"
+               "各指標の ? に計算式と出典頁があります")
+
+
 def render(fin: Financials | None, report: ReconciliationReport | None, mode: str, benchmarks: dict,
            requests: list[dict], source_label: str) -> None:
     if fin is None:
@@ -142,17 +193,7 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
     st.markdown(f"##### 表示モード：{mode_name}")
     st.caption(bs["注記"])
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("売上高", _oku(m["売上高"]), help="有報第73期 p.93（単体）")
-    c2.metric("営業利益率", f"{m['営業利益率']:.1%}", help="有報第73期 p.93")
-    c3.metric("総資産", _oku(bs["総資産"]), help="名目は有報第73期 p.91、実質は推計")
-    c4.metric("自己資本比率", f"{bs['自己資本比率']:.1%}", help="名目は有報第73期 p.91–92、実質は推計")
-    c5, c6, c7, c8 = st.columns(4)
-    c5.metric("商品仕入高", _oku(m["当期商品仕入高"]), f"前期 {m['前期商品仕入高'] / 1e5:,.2f}億円",
-              delta_color="off", help="有報第73期 p.94")
-    c6.metric("経常利益に占める受取配当金", f"{m['配当依存度']:.0%}", help="有報第73期 p.93")
-    c7.metric("営業利益ROA", f"{bs['営業利益ROA']:.1%}", help="営業利益÷総資産")
-    c8.metric("有利子負債", _oku(m["有利子負債"]), help="借入金・社債・リース債務 有報第73期 p.92")
+    _render_kpis(fin, mode)
 
     st.divider()
     left, right = st.columns([3, 2], gap="large")
@@ -163,10 +204,13 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
             st.warning(benches[0].get("note", "比較値は仮置きです"), icon=":material/construction:")
         df = _ratio_frame(fin, mode, benches)
         st.plotly_chart(_ratio_chart(df, benches), width="stretch", theme="streamlit")
-        with st.expander("表で見る"):
-            st.dataframe(df, hide_index=True, width="stretch",
-                         column_config={c: st.column_config.NumberColumn(c, format="%.1f%%")
-                                        for c in df.columns if c not in ("指標", "出典（対象企業）")})
+        st.markdown("**グラフの基礎数値と典拠**")
+        bf = _basis_frame(fin, mode, benches)
+        import html as _h
+        head = "".join(f"<th>{_h.escape(c)}</th>" for c in bf.columns)
+        body = "".join("<tr>" + "".join(f"<td>{_h.escape(str(v))}</td>" for v in r) + "</tr>" for r in bf.itertuples(index=False))
+        st.html(f'<div class="dd-cmp-wrap"><table class="dd-cmp dd-basis"><thead><tr>{head}</tr></thead>'
+                f"<tbody>{body}</tbody></table></div>")
         st.markdown("##### 名目と実質の資産構成")
         st.plotly_chart(_bs_chart(fin), width="stretch", theme="streamlit")
         nom, real = metrics.balance_sheet(fin, "nominal"), metrics.balance_sheet(fin, "real")

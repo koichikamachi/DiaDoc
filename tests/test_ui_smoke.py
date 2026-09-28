@@ -295,3 +295,14 @@ def test_status_names_say_review_not_adoption(data):
     texts = _texts(at)
     assert "審査通過・時期内" in texts and "採用候補" not in texts.split("採否ステータス")[-1]
     assert "贈答・高付加価値ラインへの移行" in texts and "本文を読む" in texts
+
+
+def test_matrix_shows_basis_table_and_plain_recon_wording(data):
+    at = _run()
+    assert any("この数字は論争の根拠に使えます" in s.value for s in at.success)
+    assert any("グラフの基礎数値と典拠" in m.value for m in at.markdown)
+    labels = [m.label for m in at.metric]
+    assert "受取配当" not in "".join(labels[:7]) and "経常利益に占める受取配当金" in labels and "残余月数（改善前）" in labels
+    at.selectbox(key="company").set_value("C002_sample_crisis").run()
+    labels = [m.label for m in at.metric]
+    assert "経常利益に占める受取配当金" not in labels and not at.exception
