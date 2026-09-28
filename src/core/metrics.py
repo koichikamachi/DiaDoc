@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from schema import CashBase, CausalBridge, CountedBridge, Financials, Monitor
 
 
@@ -49,6 +51,71 @@ def balance_sheet(fin: Financials, mode: str) -> dict:
         "営業利益ROA": _v(fin, "op") / ta if ta else 0.0,
         "注記": note,
     }
+
+
+@dataclass(frozen=True)
+class BSBlock:
+    """比例縮尺の貸借対照表の一区画（千円）。side は "資産" か "負債・純資産"。"""
+
+    side: str
+    kind: str        # 資産 / 負債 / 純資産
+    label: str
+    amount: int
+    gain_related: bool = False   # 株式の含み益に由来する区画（名目にだけある）
+
+
+def bs_blocks(fin: Financials, mode: str) -> list[BSBlock]:
+    """貸借対照表を区画に分ける。区画の合計は balance_sheet() の総資産・負債＋純資産に一致する。
+
+    名目では含み益・繰延税金負債・評価差額金を別区画にして、実質で何が消えるかを見せる。
+    """
+    bs = balance_sheet(fin, mode)
+    ta, tca, tinv, cash = bs["総資産"], _v(fin, "tca"), _v(fin, "tinv"), _v(fin, "cash")
+    tcl, tltl, dtl, oci = _v(fin, "tcl"), _v(fin, "tltl"), _v(fin, "dtl"), _v(fin, "oci")
+    gain = unrealized_gain_pretax(fin) or 0
+    if mode == "nominal":
+        inv_other = tinv - gain
+        fixed = ta - tca - tinv
+    else:
+        dta = fin.supplementary.get("dta_netted")
+        inv_other = tinv - gain + (dta.cur if dta else 0)
+        fixed = ta - tca - inv_other
+    blocks = [
+        BSBlock("資産", "資産", "現金預金", cash),
+        BSBlock("資産", "資産", "その他の流動資産", tca - cash),
+        BSBlock("資産", "資産", "有形・無形固定資産", fixed),
+        BSBlock("資産", "資産", "投資その他の資産", inv_other),
+    ]
+    if mode == "nominal" and gain:
+        blocks.append(BSBlock("資産", "資産", "株式の含み益", gain, True))
+    blocks.append(BSBlock("負債・純資産", "負債", "流動負債", tcl))
+    if mode == "nominal":
+        blocks.append(BSBlock("負債・純資産", "負債", "固定負債",
+                              tltl - (dtl if gain else 0)))
+        if gain and dtl:
+            blocks.append(BSBlock("負債・純資産", "負債", "繰延税金負債", dtl, True))
+        na = bs["純資産"]
+        if gain and oci:
+            blocks.append(BSBlock("負債・純資産", "純資産", "純資産", na - oci))
+            blocks.append(BSBlock("負債・純資産", "純資産", "評価差額金", oci, True))
+        else:
+            blocks.append(BSBlock("負債・純資産", "純資産", "純資産", na))
+    else:
+        blocks.append(BSBlock("負債・純資産", "負債", "固定負債", bs["負債"] - tcl))
+        blocks.append(BSBlock("負債・純資産", "純資産", "純資産", bs["純資産"]))
+    return [b for b in blocks if b.amount != 0 or b.kind == "純資産"]
+
+
+# 実質化で本来検討すべき中小企業の科目（いまの実質本業BSには反映していない）
+WATCH_ITEMS = (
+    ("suspense", "仮払金", "中身と回収見込みの確認が要る（資産性がなければ減額）"),
+    ("officer_loan", "役員借入金", "返済を求めない約束があれば、実質は資本に近い"),
+    ("ins_reserve", "保険積立金", "帳簿の額と解約返戻金の差を確かめる"),
+)
+
+
+def watch_items(fin: Financials) -> list[tuple[str, int, str]]:
+    return [(label, fin.value(key), why) for key, label, why in WATCH_ITEMS if fin.value(key)]
 
 
 def core_metrics(fin: Financials) -> dict:

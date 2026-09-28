@@ -75,20 +75,69 @@ def _ratio_chart(df: pd.DataFrame, benches: list[dict]) -> go.Figure:
     return fig
 
 
+KIND_COLOR = {"資産": C_COMPANY, "負債": C_AVG, "純資産": C_BENCH}
+# 下から積む順。含み益に由来する区画は一番上に置き、実質の列と見比べたとき「上のふたが消える」ように見せる
+STACK_ORDER = {"資産": ["投資その他", "有形・無形", "その他の流動", "現金預金", "株式の含み益"],
+               "負債・純資産": ["純資産", "固定負債", "流動負債", "繰延税金負債", "評価差額金"]}
+
+
+def _stack_rank(b: metrics.BSBlock) -> int:
+    return next(i for i, head in enumerate(STACK_ORDER[b.side]) if b.label.startswith(head))
+
+
 def _bs_chart(fin: Financials) -> go.Figure:
-    nom, real = metrics.balance_sheet(fin, "nominal"), metrics.balance_sheet(fin, "real")
-    labels = ["名目BS", "実質本業BS"]
+    """比例縮尺の貸借対照表。左右の柱の高さが金額に比例し、名目と実質を同じ目盛りで並べる。"""
+    has_gain = bool(metrics.unrealized_gain_pretax(fin))
+    views = [("名目", "nominal"), ("実質", "real")] if has_gain else [("名目＝実質", "nominal")]
     fig = go.Figure()
-    fig.add_bar(y=labels, x=[nom["事業資産"] / 1e5, real["事業資産"] / 1e5], name="事業資産", orientation="h",
-                marker_color=C_COMPANY, hovertemplate="%{y}<br>事業資産：%{x:,.1f}億円<extra></extra>")
-    fig.add_bar(y=labels, x=[nom["投資有価証券"] / 1e5, real["投資有価証券"] / 1e5], name="投資有価証券", orientation="h",
-                marker_color=C_AVG, hovertemplate="%{y}<br>投資有価証券：%{x:,.1f}億円<extra></extra>")
+    # 凡例は固定順で先に作る（色は種類、斜線は「実質では消える」）。区画ごとの名前は柱の中とホバーに出す
+    legend_items = [("資産", KIND_COLOR["資産"], ""), ("負債", KIND_COLOR["負債"], ""), ("純資産", KIND_COLOR["純資産"], ""),
+                    ("斜線：含み益に由来（実質では消える）" if has_gain else "", "#9a9994", "/")]
+    if any(b.kind == "純資産" and b.amount < 0 for _, m in views for b in metrics.bs_blocks(fin, m)):
+        legend_items.append(("斜線：債務超過", KIND_COLOR["純資産"], "/"))
+    for name, color, shape in legend_items:
+        if name:
+            fig.add_bar(x=[[views[0][0]], ["資産"]], y=[None], name=name, marker=dict(color=color, pattern=dict(
+                shape=shape, fillmode="overlay", fgcolor="rgba(255,255,255,0.8)", size=7, solidity=0.3)),
+                hoverinfo="skip")
+    for view, mode in views:
+        blocks = metrics.bs_blocks(fin, mode)
+        totals = {side: sum(b.amount for b in blocks if b.side == side) for side in ("資産", "負債・純資産")}
+        for b in sorted(blocks, key=lambda b: (b.side != "資産", _stack_rank(b))):
+            share = b.amount / totals[b.side] if totals[b.side] else 0
+            fig.add_bar(
+                x=[[view], [b.side]], y=[b.amount / 1e5], name=b.label, showlegend=False,
+                marker=dict(color=KIND_COLOR[b.kind], line=dict(width=2, color="rgba(255,255,255,0.85)"),
+                            opacity=0.5 if b.gain_related else 1.0,
+                            pattern=dict(shape="/" if b.gain_related or b.amount < 0 else "", fillmode="overlay",
+                                         fgcolor="rgba(255,255,255,0.8)", size=7, solidity=0.3)),
+                text=f"{b.label}<br>{b.amount / 1e5:,.1f}億円", textposition="inside", insidetextanchor="middle",
+                hovertemplate=(f"{view}・{b.side}<br>{b.label}<br>{b.amount:,}千円（{b.amount / 1e5:,.2f}億円）"
+                               f"<br>{b.side}合計の{share:.0%}<extra></extra>"),
+            )
     fig.update_layout(
-        barmode="stack", height=200, margin=dict(l=10, r=10, t=10, b=10),
+        barmode="relative", bargap=0.08, bargroupgap=0.0, height=520, margin=dict(l=10, r=10, t=10, b=10),
+        uniformtext=dict(minsize=10, mode="hide"),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, traceorder="normal"),
-        xaxis=dict(ticksuffix="億円", showgrid=True), yaxis=dict(autorange="reversed"),
+        yaxis=dict(ticksuffix="億円", showgrid=True, zeroline=True), xaxis=dict(type="multicategory"),
     )
     return fig
+
+
+def _bs_caption(fin: Financials) -> str:
+    nom, real = metrics.balance_sheet(fin, "nominal"), metrics.balance_sheet(fin, "real")
+    gain = metrics.unrealized_gain_pretax(fin) or 0
+    if not gain:
+        head = "株式の含み益はありません。名目と実質は同じ姿です。"
+    else:
+        head = (f"名目の総資産{_oku(nom['総資産'])}のうち、株式の含み益が{_oku(gain)}（{gain / nom['総資産']:.0%}）。"
+                f"斜線の部分を除くと、実質の総資産は{_oku(real['総資産'])}に縮み、"
+                f"純資産は{_oku(nom['純資産'])}から{_oku(real['純資産'])}になります（推計）。")
+    if nom["純資産"] < 0:
+        head += f"純資産がマイナス（債務超過 {_oku(-nom['純資産'])}）です。"
+    else:
+        head += f"負債は資産の{nom['負債'] / nom['総資産']:.0%}（名目）。"
+    return head
 
 
 def _recon_frame(report: ReconciliationReport) -> pd.DataFrame:
@@ -189,7 +238,7 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
 
     bs = metrics.balance_sheet(fin, mode)
     m = metrics.core_metrics(fin)
-    mode_name = "名目BS（制度会計・時価評価）" if mode == "nominal" else "実質本業BS（株式含み益控除・中小企業基準）"
+    mode_name = "名目BS（制度会計・時価評価）" if mode == "nominal" else "実質本業BS（株式の含み益を控除した推計）"
     st.markdown(f"##### 表示モード：{mode_name}")
     st.caption(bs["注記"])
 
@@ -211,11 +260,14 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
         body = "".join("<tr>" + "".join(f"<td>{_h.escape(str(v))}</td>" for v in r) + "</tr>" for r in bf.itertuples(index=False))
         st.html(f'<div class="dd-cmp-wrap"><table class="dd-cmp dd-basis"><thead><tr>{head}</tr></thead>'
                 f"<tbody>{body}</tbody></table></div>")
-        st.markdown("##### 名目と実質の資産構成")
+        st.markdown("##### 貸借対照表（面積が金額に比例）")
         st.plotly_chart(_bs_chart(fin), width="stretch", theme="streamlit")
-        nom, real = metrics.balance_sheet(fin, "nominal"), metrics.balance_sheet(fin, "real")
-        share = 1 - real["総資産"] / nom["総資産"]
-        st.caption(f"名目の総資産のうち約{share:.0%}が株式の含み益。含み益を除くと、本業の総資産は約{real['総資産'] / 1e5:,.0f}億円になる（推計）。")
+        st.caption(_bs_caption(fin))
+        watch = metrics.watch_items(fin)
+        if watch:
+            with st.expander("実質化で確かめたい科目（まだこの図には反映していません）", icon=":material/search:"):
+                for label, amount, why in watch:
+                    st.markdown(f"- **{label}** {amount:,}千円 — {why}")
     with right:
         if report is not None:
             _render_recon(report, fin, source_label)
