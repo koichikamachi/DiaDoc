@@ -193,3 +193,24 @@ def test_adoption_requires_a_closed_debate(data):
     s.step()
     with pytest.raises(ValueError):
         s.adopt("（一）")
+
+
+@pytest.mark.parametrize("name,kind", [
+    ("決算報告書.pdf", "財務諸表（決算報告書）"), ("決算書_2026.xlsx", "財務諸表（決算報告書）"),
+    ("73_securities-report.pdf", "財務諸表（決算報告書）"), ("有報第73期.pdf", "財務諸表（決算報告書）"),
+    ("FS_FY2025.pdf", "財務諸表（決算報告書）"), ("販管費内訳.pdf", "販管費内訳"),
+    ("勘定科目内訳明細書.pdf", "勘定科目内訳明細書"), ("品目別損益.xlsx", "品目別損益"),
+])
+def test_document_classification(name, kind):
+    from core.mock_engine import classify
+
+    assert classify(name) == kind
+
+
+def test_financial_statements_also_receive_the_sga_requests(data):
+    from core.mock_engine import handle_upload as hu
+
+    run, added, _ = hu("C001_sample_alpha", "有報第74期.pdf", b"%PDF")
+    reqs = {r["id"]: r["status"] for r in run.read("data_requests.json")}
+    assert reqs["R1"] == "受領（検証待ち）" and reqs["R2"] == "受領（検証待ち）"
+    assert "財務諸表（決算報告書）" in added[1]["text"]

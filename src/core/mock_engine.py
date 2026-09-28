@@ -233,8 +233,11 @@ def apply_intervention(run: Run, text: str) -> list[dict]:
 # 追加資料の投入
 # ---------------------------------------------------------------------------
 DOC_TYPES = [
+    # 上から順に判定する。財務諸表一式は、販管費などの個別の内訳より先に見る（「決算報告書」を販管費内訳と誤らない）
     ("勘定科目内訳明細書", ["内訳明細", "内訳書", "勘定科目"]),
-    ("販管費内訳", ["販管費", "販売費", "一般管理費", "広告", "販促", "有価証券報告書", "有報"]),
+    ("財務諸表（決算報告書）", ["決算報告書", "決算書", "財務諸表", "有価証券報告書", "有報", "計算書類",
+                        "貸借対照表", "損益計算書", "FS", "fs", "securities-report"]),
+    ("販管費内訳", ["販管費", "販売費", "一般管理費", "広告", "販促"]),
     ("品目別損益", ["品目", "製品別", "商品別", "粗利", "管理会計"]),
     ("工場別資料", ["工場", "稼働"]),
     ("人事資料", ["人事", "年齢", "人員"]),
@@ -259,6 +262,10 @@ FOLLOWUPS = {
         ("judge", "争点「不採算品目の即時整理」と「価格転嫁は機能している」の審理を再開します。数値の読み取りと検算が済むまで判定は保留します。", "再開"),
     ],
 }
+
+
+# 財務諸表一式には販管費の内訳（注記・内訳書）も含まれるので、販管費内訳のデータ請求も「受領」にする
+DOC_COVERS = {"財務諸表（決算報告書）": {"財務諸表（決算報告書）", "販管費内訳"}}
 
 
 def classify(filename: str) -> str:
@@ -364,7 +371,7 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
     requests = run.read("data_requests.json", [])
     touched, resolved = [], []
     for r in requests:
-        if r.get("doc_type") == doc_type and r["status"] in ("請求中", "受領（検証待ち）"):
+        if r.get("doc_type") in DOC_COVERS.get(doc_type, {doc_type}) and r["status"] in ("請求中", "受領（検証待ち）"):
             r["status"] = "受領（検証待ち）"
             r.setdefault("received", []).append({"file": saved.name, "run": run.run_id, "at": now_iso()})
             touched.append(r)
