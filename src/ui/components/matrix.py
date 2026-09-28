@@ -27,8 +27,9 @@ def _oku(v: float) -> str:
 
 
 def _unit(fin: Financials) -> tuple[float, str]:
-    """図の単位。総資産50億円未満の会社は百万円、それ以上は億円（千円からの割り算の値と単位名）。"""
-    return (1e3, "百万円") if (fin.value("ta") or 0) < 5_000_000 else (1e5, "億円")
+    """表示単位は会社の規模ではなく金額の桁で決める。総資産が10億円に届かない（億円で1桁になる）ときは百万円、
+    10億円以上なら億円。億円で1桁だと目盛りと区画の数字が粗くなりすぎるため（千円からの割り算の値と単位名）。"""
+    return (1e3, "百万円") if (fin.value("ta") or 0) < 1_000_000 else (1e5, "億円")
 
 
 def _amt(fin: Financials, v: float) -> str:

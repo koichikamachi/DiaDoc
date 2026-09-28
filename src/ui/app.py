@@ -249,6 +249,8 @@ def main() -> None:
                       run=run, session=session)
         matrix.render_extractions(run)
     with t3:
+        tree.render_live(state)
+        st.divider()
         cmp_ = digest.comparison(state)
         if cmp_ is not None:
             st.markdown("##### Level 0 の道の比較")
@@ -258,7 +260,11 @@ def main() -> None:
             st.markdown(cmp_.text.replace("\n", "  \n"))
             _adoption(session, state, run)
             st.divider()
-        tree.render(run.read("decision_tree.json"))
+        legacy_tree = run.read("decision_tree.json")
+        if legacy_tree:
+            with st.expander("（参考）旧・静的ツリー", icon=":material/history:"):
+                st.caption("LangGraph 接続前の台本で作ったツリーです。上の論争とは連動しません。")
+                tree.render(legacy_tree)
     with t4:
         _run_comparison(run)
 
