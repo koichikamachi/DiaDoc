@@ -1,0 +1,10 @@
+# gcloud run deploy --source . で Cloud Build に送らないもの
+# .gitignore の除外（.env や実行時ファイル）をそのまま引き継ぐ
+#!include:.gitignore
+.git
+.gitignore
+.gcloudignore
+tests/
+scripts/
+docs/
+*.docx

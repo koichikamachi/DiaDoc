@@ -8,6 +8,11 @@ secrets/
 service-account*.json
 credentials*.json
 client_secret*.json
+# 実行時にできるファイル（見本に入れない）
+data/**/checkpoints.sqlite*
+data/**/debate_trace.jsonl
+data/**/adjustments.json
+data/**/*.tmp
 # 不要なもの
 .git
 .venv
@@ -15,8 +20,10 @@ client_secret*.json
 **/*.pyc
 .pytest_cache
 tests
+scripts
+docs
+*.docx
 desktop.ini
 Thumbs.db
 .DS_Store
 *.md
-!deploy.md

@@ -116,15 +116,16 @@ def build_live(nodes) -> graphviz.Digraph:
     return g
 
 
-def render_live(state) -> None:
+def render_live(state, mission: str | None = None) -> None:
     from core import decision_tree
 
-    nodes = decision_tree.build(state)
+    nodes = decision_tree.build(state, mission)
     st.markdown("##### 論争から育つ意思決定ツリー")
     st.caption("論争が一手進むたびに、プログラムが状態から描き直します。根＝診断ミッション、枝＝改善の4レバー、"
                "葉＝提案（審査と資金の時間軸で見た採否）。複数のレバーにまたがる提案は、それぞれのレバーから枝が伸びます。"
                "トリアージの宣告が審査を通ると「Level 0 の道」の枝が生え、Judge の比較と人間の採択が重なります。")
-    st.graphviz_chart(build_live(nodes), width="stretch")
+    # 枝の少ないうちは原寸で描く（横幅いっぱいに引き伸ばすと文字が巨大になる）
+    st.graphviz_chart(build_live(nodes), width="stretch" if len(nodes) > 8 else "content")
     marks = ["◎ 審査通過・時期内", "◐ 一部のみ間に合う", "◷ 審査通過・時期外", "× 棄却", "… 審理中", "○ 未着手のレバー",
              "✓✕ 道筋がつくか（残余月数と比べてプログラムが判定）", "★ 人間が記録した採択"]
     st.caption("凡例：" + "　".join(marks))

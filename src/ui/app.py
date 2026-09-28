@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import os
+
 import sys
 from pathlib import Path
 
@@ -119,6 +121,9 @@ def sidebar() -> tuple[Run, str]:
         read_eng = f"Gemini（{config.gemini_model()}）" if config.extractor_mode() == "gemini" else "モック"
         talk_eng = f"Gemini（{config.gemini_model()}）" if config.debate_mode() == "gemini" else "台本（モック）"
         st.caption(f":material/description: 読み取り：{read_eng}  \n:material/forum: 発言の生成：{talk_eng}")
+        if os.environ.get("DBD_SESSION_SANDBOX") == "1":
+            st.caption(":material/science: 公開デモ：このブラウザ専用の作業場所で動いています。ほかの人の操作とは混ざらず、"
+                       "時間がたつかサーバーが再起動すると見本の状態に戻ります")
         sess = get_session(run)
         stt = sess.state() if sess.started else None
         st.download_button("📥 議論ログをCSV出力", export.to_csv_bytes(stt), width="stretch", key="csv_side",
@@ -249,7 +254,7 @@ def main() -> None:
                       run=run, session=session)
         matrix.render_extractions(run)
     with t3:
-        tree.render_live(state)
+        tree.render_live(state, session.ctx.mission)
         st.divider()
         cmp_ = digest.comparison(state)
         if cmp_ is not None:

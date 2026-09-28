@@ -40,9 +40,9 @@ def _bridge_line(p: digest.ProposalStatus) -> str:
     return f"資金 {cash:+,}千円" + (f"・{lead}か月後から" if lead is not None else "")
 
 
-def build(state) -> list[TreeNode]:
+def build(state, mission: str | None = None) -> list[TreeNode]:
     """DebateState からツリーの節を作る。state が None（論争前）なら根とレバーだけ。"""
-    mission = state.mission if state else "（論争がまだ始まっていません）"
+    mission = state.mission if state else (mission or "（診断ミッション未設定）")
     where = f"第{state.round}ラウンド・{PHASE_LABEL.get(state.phase, state.phase)}" if state else "開始前"
     nodes = [TreeNode("root", [], "root", mission, "root", [where])]
     if state is None:

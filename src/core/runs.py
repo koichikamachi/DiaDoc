@@ -19,8 +19,25 @@ from schema import Financials, RunMeta
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def data_dir() -> Path:
+def seed_dir() -> Path:
+    """同梱の data/（見本の初期状態）。DBD_DATA_DIR で差し替えられる。"""
     return Path(os.environ.get("DBD_DATA_DIR", ROOT / "data"))
+
+
+def data_dir() -> Path:
+    """いま使う data/。
+
+    DBD_SESSION_SANDBOX=1（公開デモ）のときは、ブラウザのセッションごとに見本を複製した専用の作業場所を返す。
+    審査員が何人同時に開いても、互いの論争・資料・調整（と SQLite の途中状態）は混ざらず、
+    どのセッションも C001・C002 の見本の初期状態から始まる。コンテナが止まればすべて消える。
+    """
+    if os.environ.get("DBD_SESSION_SANDBOX") == "1":
+        from core import sandbox
+
+        d = sandbox.session_data_dir(seed_dir())
+        if d is not None:
+            return d
+    return seed_dir()
 
 
 class FrozenRunError(RuntimeError):

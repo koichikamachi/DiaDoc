@@ -1,0 +1,13 @@
+# 公開用イメージで使う版を固定する（手元で 249 件のテストを通した組み合わせ。2026-09-28）
+# pyproject.toml は「どの版以上」を、このファイルは「どの版で作るか」を決める
+streamlit==1.64.0
+pandas==3.0.2
+plotly==7.1.0
+graphviz==0.21
+pydantic==2.13.3
+google-genai==2.25.0
+openpyxl==3.1.5
+python-dotenv==1.2.2
+langgraph==1.2.12
+langgraph-checkpoint==4.2.0
+langgraph-checkpoint-sqlite==3.1.1

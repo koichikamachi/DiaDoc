@@ -32,6 +32,7 @@ def test_before_the_debate_only_mission_and_levers():
     nodes = dt.build(None)
     assert [n.kind for n in nodes] == ["root", "lever", "lever", "lever", "lever"]
     assert all(n.status == "未着手" for n in nodes[1:])
+    assert dt.build(None, "資金ショートの回避")[0].label == "資金ショートの回避"
 
 
 def test_tree_grows_with_the_debate(session):
