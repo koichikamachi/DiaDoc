@@ -81,7 +81,8 @@
       "page": "1"
      }
     ],
-    "settle_condition": "医療機器の顧客との取引が始まれば"
+    "settle_condition": "医療機器の顧客との取引が始まれば",
+    "headline": "技術とブランドで再生（定性）"
    },
    {
     "action": "提案",
@@ -116,7 +117,8 @@
       "recurring": true,
       "rationale": "工場長の見立て（メモp.2）"
      }
-    ]
+    ],
+    "headline": "値上げと段取り替えの同時実施"
    },
    {
     "action": "提案",
@@ -164,7 +166,8 @@
       "recurring": false,
       "rationale": "原材料41,000千円（決算報告書p.2）の約1割を、次の仕入を絞って3か月で圧縮"
      }
-    ]
+    ],
+    "headline": "役員報酬・遊休地・在庫の三手"
    }
   ]
  },

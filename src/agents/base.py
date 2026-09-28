@@ -52,6 +52,7 @@ class AgendaOp(BaseModel):
 class AgentTurn(BaseModel):
     action: Action
     text: str = Field(description="発言本文。日本語。金額は千円")
+    headline: str = Field(default="", description="提案の見出し（24字以内。例：価格改定と段取り替えの同時実施）。提案のときは必ず書く")
     agenda_id: str | None = None
     target_node: str | None = Field(default=None, description="意思決定ツリーのノード（任意）")
     sources: list[SourceOut] = Field(default_factory=list)
@@ -341,7 +342,8 @@ def to_message(turn: AgentTurn, state: DebateState, speaker: AgentId, ctx: Debat
         sources = [s.model_copy(update={"file": ctx.resolve_source(s.file)}) for s in sources]
     return DebateMessage(at=stamp(),
         id=f"R{state.round}-{speaker}-{len(state.messages) + 1}", round=state.round, phase=state.phase,
-        speaker=speaker, action=turn.action, text=turn.text.strip(), agenda_id=turn.agenda_id,
+        speaker=speaker, action=turn.action, text=turn.text.strip(), headline=(turn.headline or "").strip()[:40],
+        agenda_id=turn.agenda_id,
         target_node=turn.target_node, sources=sources, settle_condition=turn.settle_condition,
         bridges=[normalize_bridge(b) for b in turn.bridges], options=turn.options,
     )

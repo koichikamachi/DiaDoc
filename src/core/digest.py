@@ -123,15 +123,16 @@ class ProposalStatus:
     message_id: str
     speaker: str
     round: int
-    title: str
-    status: str              # 採用候補／一部のみ間に合う／保留（時期）／棄却／審理中
+    title: str               # 見出し（エージェントの見出し、なければ最初の一文。切り詰めない）
+    status: str              # 審査通過・時期内／一部のみ間に合う／審査通過・時期外／棄却／審理中（採用は人間の「採択の記録」だけ）
     reason: str
     bridges: list[BridgeLine]
+    body: str = ""           # 提案の本文（全文）
 
 
-def _title(text: str, n: int = 26) -> str:
-    head = re.split(r"[。\n]", text.strip(), maxsplit=1)[0]
-    return head if len(head) <= n else head[:n] + "…"
+def _title(text: str) -> str:
+    """見出しのない古い記録は、最初の一文をそのまま見出しにする（切り詰めず、画面で折り返す）。"""
+    return re.split(r"(?<=[。！？])|\n", text.strip(), maxsplit=1)[0].strip()
 
 
 def proposals(state) -> list[ProposalStatus]:
@@ -167,12 +168,13 @@ def proposals(state) -> list[ProposalStatus]:
         else:
             flags = [x.in_time for x in lines if x.cf_effect > 0]
             if flags and all(flags):
-                status, why = "採用候補", "資金が尽きる前に効く"
+                status, why = "審査通過・時期内", "審査を通り、資金が尽きる前に効く（採用するかは人間が決める）"
             elif any(flags):
                 status, why = "一部のみ間に合う", "資金が尽きる前に効くのは一部だけ"
             else:
-                status, why = "保留（時期）", "効果が出るのは資金が尽きた後"
-        out.append(ProposalStatus(m.id, m.speaker, m.round, _title(m.text), status, why, lines))
+                status, why = "審査通過・時期外", "審査は通ったが、効果が出るのは資金が尽きた後"
+        out.append(ProposalStatus(m.id, m.speaker, m.round, (m.headline or "").strip() or _title(m.text), status, why,
+                                  lines, body=m.text))
     return out
 
 
@@ -276,7 +278,7 @@ def run_summary(run) -> dict:
     rw0 = "流出なし" if m.base_runway_months is None else f"{m.base_runway_months:.1f}か月"
     rw1 = "流出なし" if m.cash_runway_months is None else f"{m.cash_runway_months:.1f}か月"
     req = "—" if m.base.required_cf is None else f"{m.base.required_cf:,}"
-    cands = [p.title for p in proposals(st) if p.status in ("採用候補", "一部のみ間に合う")]
+    cands = [p.title for p in proposals(st) if p.status in ("審査通過・時期内", "一部のみ間に合う")]
     tri = triage(st)
     cmp_ = comparison(st)
     ways = "—"
@@ -292,7 +294,7 @@ def run_summary(run) -> dict:
         "残余月数": f"{rw0} → {rw1}",
         "回収CF累計／必要CF（年・千円）": f"{m.accumulated_recovery_cf:,}／{req}",
         "残りの不足（年・千円）": "—" if m.gap is None else f"{m.gap:,}",
-        "採用候補の改善案": "／".join(cands) or "なし",
+        "審査通過・時期内の改善案": "／".join(cands) or "なし",
         "宣告された道（Level 0）": ways,
         "採択された方針": st.adopted_option + (f"（{st.adopted_note}）" if st.adopted_note else "")
         if st.adopted_option else ("未記録（人間が選ぶ）" if tri else "—"),
@@ -300,7 +302,7 @@ def run_summary(run) -> dict:
 
 
 COMPARE_ROWS = ("回次", "状態", "診断ミッション", "論争", "試した改善レバー", "最終フェーズ", "残余月数",
-                "回収CF累計／必要CF（年・千円）", "残りの不足（年・千円）", "採用候補の改善案", "宣告された道（Level 0）",
+                "回収CF累計／必要CF（年・千円）", "残りの不足（年・千円）", "審査通過・時期内の改善案", "宣告された道（Level 0）",
                 "採択された方針")
 
 

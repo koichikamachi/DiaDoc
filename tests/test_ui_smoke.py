@@ -252,3 +252,46 @@ def test_run_comparison_tab_renders(data):
     _btn(at, "＋ 新しい分析回次（Run）を開始").click().run()
     assert not at.exception, at.exception
     assert len(at.multiselect(key="cmp_runs__" + COMPANY + "__2").value) == 2
+
+
+def test_next_pick_defaults_to_auto_and_resets_after_a_nominated_step(data):
+    at = _run()
+    assert at.selectbox(key="next_pick").value == "auto"            # 「Choose an option」にならない
+    _btn(at, "▶ 1手進める").click().run()
+    at.selectbox(key="next_pick").set_value("rebuild")
+    _btn(at, "▶ 1手進める").click().run()
+    assert at.selectbox(key="next_pick").value == "auto"            # 指名は1手ごとに自動へ戻る
+
+
+def test_bottom_buttons_under_the_latest_speech(data):
+    from core.graph import DebateSession
+    from core.runs import latest_run
+
+    at = _run()
+    _btn(at, "▶ 1手進める").click().run()
+    bottom = at.button(key="step_bottom")
+    assert bottom.label.startswith("▶ 次の1手（次：Prof. Growth")
+    bottom.click().run()
+    assert not at.exception, at.exception
+    assert [m.speaker for m in DebateSession(latest_run(COMPANY)).state().messages] == ["radar", "growth"]
+    at.button(key="gate_bottom").click().run()
+    assert DebateSession(latest_run(COMPANY)).state().round == 2
+
+
+def test_stale_double_click_is_ignored(data):
+    from core.graph import DebateSession
+    from core.runs import latest_run
+
+    at = _run()
+    at.session_state["dd_pending"] = {"action": "step", "nonce": 5, "speaker": None}   # 古い発言数の要求
+    at.run()
+    assert not DebateSession(latest_run(COMPANY)).started or not DebateSession(latest_run(COMPANY)).state().messages
+
+
+def test_status_names_say_review_not_adoption(data):
+    at = _run()
+    for _ in range(2):
+        _btn(at, "⏩ 次のラウンドへ").click().run()
+    texts = _texts(at)
+    assert "審査通過・時期内" in texts and "採用候補" not in texts.split("採否ステータス")[-1]
+    assert "贈答・高付加価値ラインへの移行" in texts and "本文を読む" in texts

@@ -175,15 +175,52 @@ def _card(m: DebateMessage, verdicts: dict, counted: dict, runway: float | None 
                 st.markdown("\n\n".join(details))
 
 
+def _request(action: str, nonce: int, can_pick: bool) -> None:
+    """ボタンの受付。押された時点の発言数（nonce）と一緒に記録し、実行は本体で一度だけ行う。
+
+    処理中に連打されても、発言数が変わった後の要求は古いものとして捨てる（二重実行の防止）。
+    指名は1手ごとに「自動」に戻す。
+    """
+    ss = st.session_state
+    pick = ss.get("next_pick", "auto")
+    ss.dd_pending = {"action": action, "nonce": nonce, "speaker": pick if can_pick and pick != "auto" else None}
+    ss.next_pick = "auto"
+
+
+def _execute_pending(session: DebateSession) -> None:
+    ss = st.session_state
+    req = ss.pop("dd_pending", None)
+    if not req:
+        return
+    state = session.state() if session.started else None
+    if (len(state.messages) if state else 0) != req["nonce"] or session.finished:
+        return   # 既に処理済み（連打）か、論争が閉じている
+    with st.spinner("発言を生成しています…"):
+        try:
+            if req["action"] == "gate":
+                session.run_round()
+            else:
+                session.step(req["speaker"])
+        except Exception as e:  # Gemini の失敗など。状態は進んでいないので再試行できる
+            ss.debate_error = f"{type(e).__name__}: {e}"
+        else:
+            ss.debate_error = None
+    st.rerun()   # サイドバーなど、先に描いた部分も新しい状態で描き直す
+
+
 def render(session: DebateSession, frozen: bool) -> None:
+    if not frozen:
+        _execute_pending(session)
     state = session.state() if session.started else None
     finished = session.finished
     nxt = session.next_node if session.started else "radar"
 
     # --- 操作デッキ --------------------------------------------------------
     no_data = session.ctx.fin is None
-    picks = {None: "自動（通常順）", "growth": "Prof. Growth", "rebuild": "Dr. Rebuild", "radar": "Analyst Radar"}
+    picks = {"auto": "自動（通常順）", "growth": "Prof. Growth", "rebuild": "Dr. Rebuild", "radar": "Analyst Radar"}
     can_pick = session.can_nominate() and not frozen
+    if st.session_state.get("next_pick") not in picks:
+        st.session_state.next_pick = "auto"
     head, pick_col = st.columns([1.5, 1], vertical_alignment="bottom")
     with head:
         if finished:
@@ -194,10 +231,10 @@ def render(session: DebateSession, frozen: bool) -> None:
             rnd = f"第{state.round}ラウンド" if state else "開始前"
             why = "（ライムの介入に回答）" if state and state.reply_to else ""
             st.markdown(f":{ph['color']}-badge[{ph['icon']} {ph['label']}]　{rnd}　次の発言：**{who}**{why}")
-    pick = pick_col.selectbox("次の発言者", list(picks), format_func=picks.get, key="next_pick",
-                              disabled=not can_pick or no_data, label_visibility="collapsed",
-                              help="次の発言者を指名できます（探索段階のみ）。指名した担当者が割り込んで話し、"
-                                   "話し終えたら元の順番に戻ります")
+    pick_col.selectbox("次の発言者", list(picks), format_func=picks.get, key="next_pick",
+                       disabled=not can_pick or no_data, label_visibility="collapsed",
+                       help="次の発言者を指名できます（探索段階のみ）。指名した担当者が割り込んで話し、"
+                            "話し終えたら元の順番に戻ります。指名は1手ごとに「自動」に戻ります")
     if finished and not frozen and session.needs_comparison():
         if st.button("宣告された道を比べる（Judge）", icon=":material/compare_arrows:", type="primary"):
             with st.spinner("三つの道を同じ物差しで比べています…"):
@@ -210,26 +247,18 @@ def render(session: DebateSession, frozen: bool) -> None:
     if no_data:
         st.info("この回次には財務データがありません。左の資料ドックの「追加インプット」から財務書類（決算書など）を"
                 "投入してください。検算を通過すると論争を始められます（根拠がなければ止まる）。", icon=":material/upload_file:")
+    nonce = len(state.messages) if state else 0
+    blocked = frozen or finished or no_data
     c1, c2, c3 = st.columns([1, 1, 0.6])
-    step = c1.button("▶ 1手進める", type="primary", width="stretch", disabled=frozen or finished or no_data,
-                     help="次の担当者（または指名した担当者）の発言を一つだけ生成して止まります（Next Turn）")
-    to_gate = c2.button("⏩ 次のラウンドへ", width="stretch", disabled=frozen or finished or no_data,
-                        help="ディレクターの裁定（とフェーズ判定）まで進めて止まります（Run to Gate）")
+    c1.button("▶ 1手進める", type="primary", width="stretch", disabled=blocked, key="step_top",
+              on_click=_request, args=("step", nonce, can_pick),
+              help="次の担当者（または指名した担当者）の発言を一つだけ生成して止まります（Next Turn）")
+    c2.button("⏩ 次のラウンドへ", width="stretch", disabled=blocked, key="gate_top",
+              on_click=_request, args=("gate", nonce, can_pick),
+              help="ディレクターの裁定（とフェーズ判定）まで進めて止まります（Run to Gate）")
     c3.download_button("📥 CSV", export.to_csv_bytes(state), width="stretch", key="csv_deck",
                        file_name=csv_name(session), mime="text/csv", disabled=state is None or not state.messages,
                        help="議論ログをCSVで保存（Excel でそのまま開ける BOM 付き UTF-8）")
-    if step or to_gate:
-        with st.spinner("発言を生成しています…"):
-            try:
-                if to_gate:
-                    session.run_round()
-                else:
-                    session.step(pick if can_pick else None)
-            except Exception as e:  # Gemini の失敗など。状態は進んでいないので再試行できる
-                st.session_state.debate_error = f"{type(e).__name__}: {e}"
-            else:
-                st.session_state.debate_error = None
-        st.rerun()
     if st.session_state.get("debate_error"):
         st.error("発言の生成に失敗しました。状態は進んでいないので、もう一度押せば再試行できます。\n\n"
                  + st.session_state.debate_error, icon=":material/error:")
@@ -248,6 +277,13 @@ def render(session: DebateSession, frozen: bool) -> None:
                     st.html(f'<div class="dd-round"><span>第{m.round}ラウンド・{ph}</span></div>')
                     last_round = m.round
                 _card(m, verdicts, counted, state.monitor.cash_runway_months)
+        if not blocked:   # 読み終えたその場で押せるよう、最新の発言の真下にも置く（上の操作デッキと同じ動き）
+            who = PROFILES[nxt]["name"] if nxt else "—"
+            b1, b2, _ = st.columns([1.3, 1, 0.4])
+            b1.button(f"▶ 次の1手（次：{who}）", type="primary", width="stretch", key="step_bottom",
+                      on_click=_request, args=("step", nonce, can_pick))
+            b2.button("⏩ 次のラウンドへ", width="stretch", key="gate_bottom", on_click=_request,
+                      args=("gate", nonce, can_pick))
 
     # --- 人間の介入 --------------------------------------------------------
     nxt_name = PROFILES[nxt]["name"] if nxt else "—"

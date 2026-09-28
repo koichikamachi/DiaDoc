@@ -66,3 +66,13 @@ def test_documents_mark_material_added_during_debate(data):
 def test_triage_summary_takes_the_passed_declaration(data):
     t = digest.triage(finished("C002_sample_crisis").state())
     assert t is not None and len(t.options) == 3 and t.round == 4
+
+
+def test_proposal_titles_use_the_headline_or_the_whole_first_sentence(data):
+    st = finished("C002_sample_crisis").state()
+    ps = digest.proposals(st)
+    assert [p.title for p in ps] == ["技術とブランドで再生（定性）", "値上げと段取り替えの同時実施", "役員報酬・遊休地・在庫の三手"]
+    assert [p.status for p in ps] == ["棄却", "一部のみ間に合う", "一部のみ間に合う"]
+    old = next(m for m in st.messages if m.id == ps[1].message_id)
+    assert digest._title(old.text) == "二つの手を同時に打つ。"        # 見出しのない古い記録は、最初の一文を切り詰めずに使う
+    assert ps[1].body.startswith("二つの手を同時に打つ")

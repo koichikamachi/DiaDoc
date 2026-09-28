@@ -15,7 +15,7 @@ from schema import Financials
 from state import DebateState
 
 STATUS = {
-    "採用候補": ("ok", "✓"), "一部のみ間に合う": ("back", "◐"), "保留（時期）": ("muted", "…"),
+    "審査通過・時期内": ("ok", "✓"), "一部のみ間に合う": ("back", "◐"), "審査通過・時期外": ("muted", "…"),
     "棄却": ("rej", "✕"), "審理中": ("muted", "○"),
 }
 KPI_ACCOUNTS = {"売上高": {"sales"}, "営業利益率": {"sales", "lab", "mat", "exp"}, "手許現預金": {"cash"},
@@ -78,6 +78,7 @@ def _statuses(state: DebateState | None) -> None:
     with st.container(border=True):
         st.markdown("**採否ステータス**")
         props = digest.proposals(state)
+        st.caption("審査と資金の時間軸で見た扱いです。採用するかどうかは、人間が「採択の記録」（意思決定ツリーのタブ）で決めます")
         if not props:
             st.caption("まだ改善案は出ていません")
         rows = []
@@ -88,10 +89,11 @@ def _statuses(state: DebateState | None) -> None:
                 f'<div class="dd-sub">{"✓" if b.in_time else ("✕" if b.in_time is False else "・")} {html.escape(b.label)}'
                 f'{b.direction} 資金{b.cf_effect:+,}{"／年" if b.recurring else "（一回）"}・{b.lead_months}か月後</div>'
                 for b in p.bridges)
+            body = html.escape(p.body).replace("\n", "<br>")
             rows.append(f'<div class="dd-prop"><span class="dd-verdict dd-{cls}">{mark} {p.status}</span>'
                         f'<div class="dd-prop-title">{html.escape(p.title)}</div>'
                         f'<div class="dd-origin" style="margin-left:0">{who}・第{p.round}ラウンド・{html.escape(p.reason)}</div>'
-                        f'{sub}</div>')
+                        f'{sub}<details class="dd-more"><summary>本文を読む</summary><div>{body}</div></details></div>')
         if rows:
             st.html("".join(rows))
         tri = digest.triage(state)

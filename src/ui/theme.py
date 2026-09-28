@@ -105,7 +105,10 @@ def inject() -> None:
 /* 採否ステータスと KPI の「議論中」印 */
 .dd-prop {{ padding:.45rem 0; border-top:1px solid var(--dd-hair); font-size:.88rem; color:var(--dd-ink); }}
 .dd-prop:first-child {{ border-top:none; }}
-.dd-prop-title {{ font-weight:700; margin:.2rem 0 .05rem; }}
+.dd-prop-title {{ font-weight:700; margin:.2rem 0 .05rem; white-space:normal; overflow-wrap:anywhere; line-height:1.4; }}
+.dd-more {{ margin-top:.2rem; font-size:.8rem; color:var(--dd-ink2); }}
+.dd-more summary {{ cursor:pointer; color:var(--dd-accent); font-weight:700; }}
+.dd-more div {{ margin-top:.25rem; line-height:1.5; color:var(--dd-ink); }}
 .dd-sub {{ font-size:.78rem; color:var(--dd-ink2); font-variant-numeric:tabular-nums; }}
 .dd-live {{ margin-left:.35rem; font-size:.66rem; font-weight:700; color:var(--dd-accent);
             border:1px solid var(--dd-accent); border-radius:999px; padding:0 .3rem; }}

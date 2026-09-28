@@ -215,6 +215,7 @@ class DebateMessage(BaseModel):
     speaker: AgentId
     action: Action
     text: str
+    headline: str = ""                  # 提案の見出し（24字以内。提案のとき）
     agenda_id: str | None = None
     target_node: str | None = None     # 決定木のノード
     sources: list[SourceRef] = Field(default_factory=list)
