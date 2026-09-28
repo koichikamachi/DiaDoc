@@ -55,6 +55,7 @@ cd ..\diadoc-deploy
 gcloud run deploy diadoc `
   --source . `
   --region asia-northeast1 `
+  --execution-environment gen2 `
   --allow-unauthenticated `
   --set-secrets GEMINI_API_KEY=gemini-api-key:latest `
   --set-env-vars GEMINI_MODEL=gemini-3.8-flash `
@@ -71,6 +72,7 @@ gcloud run deploy diadoc `
 |---|---|
 | `--source .` | Dockerfile を使って Cloud Build でイメージを作る |
 | `--set-secrets` | API キーを Secret Manager から環境変数として渡す（イメージにもソースにも残らない） |
+| `--execution-environment gen2` | 第2世代の実行環境（ふつうの Linux に近く、ファイルの扱いに制約が少ない） |
 | `--max-instances 1` | Streamlit は画面の状態をコンテナのメモリに持つ。台数が分かれると、再接続のときに別のコンテナにつながって状態を失うことがあるため、デモでは1台に固定する |
 | `--concurrency 20` | 1台で同時に受け持つ接続の上限。審査員が数人同時に開く程度を想定 |
 | `--session-affinity` | 同じ利用者を同じコンテナにつなぐ |
@@ -78,6 +80,8 @@ gcloud run deploy diadoc `
 | `--timeout 3600` | Streamlit は WebSocket で接続を保つ。上限（60分）まで切れないようにする。切れても画面は自動で再接続する |
 
 **発言を台本で動かすデモにしたい場合**（Gemini の利用料をかけない、応答を速くする）は、`--set-env-vars GEMINI_MODEL=gemini-3.8-flash,DBD_DEBATE=mock` とします。資料の読み取りだけを台本にするときは `DBD_EXTRACTOR=mock` を足します。
+
+**「Container import failed」で止まった場合**：ビルドは通ったのに、Cloud Run がイメージを読み込めない状態です。以前、`uv` が部品をハードリンクで置いていたことが原因で起きました（Dockerfile で対処済み。ビルドの最後にハードリンクが残っていないことを確かめています）。Dockerfile を変えたときに再発したら、まずハードリンクと、イメージに残ったキャッシュを疑ってください。
 
 **権限エラーでビルドが止まった場合**は、Cloud Build が使うサービスアカウントに権限を付けてから、もう一度デプロイします。
 

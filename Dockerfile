@@ -24,9 +24,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # 依存関係：pyproject.toml の範囲で、constraints.txt の版に固定して入れる
+# uv は既定ではキャッシュからハードリンクで部品を置き、キャッシュ（約1GB）もイメージに残す。
+# ハードリンクの多いイメージは Cloud Run が読み込めない（Container import failed）ことがあるので、
+# コピーで置き、キャッシュは残さない。最後に、ハードリンクが残っていないことを確かめる
 COPY pyproject.toml constraints.txt ./
 RUN pip install uv \
- && uv pip install --system -r pyproject.toml -c constraints.txt
+ && uv pip install --system --no-cache --link-mode=copy -r pyproject.toml -c constraints.txt \
+ && pip uninstall -y uv \
+ && test "$(find "$(python -c 'import site; print(site.getsitepackages()[0])')" -type f -links +1 | wc -l)" -eq 0
 
 # アプリ本体と見本データ
 COPY .streamlit ./.streamlit
