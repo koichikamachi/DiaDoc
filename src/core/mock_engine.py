@@ -400,6 +400,92 @@ def choose_replace(run: Run, file: str) -> str:
     return "この資料は採用しません。訂正した財務諸表を投入してください。"
 
 
+WITHDRAWN_DIR = "withdrawn"
+
+
+def withdrawable(run: Run, path: Path | None) -> tuple[bool, str]:
+    """投入済みの資料を取り下げられるか。戻り値：（可否、できない理由または空）。
+
+    取り下げられるのは、開いている回次に人が投入したファイルだけ。同梱の見本（titles.json に表示名があるもの）、
+    親の回次から引き継いだもの、数値がこの回次の財務データに採用されているものは取り下げない。
+    """
+    import json
+
+    if path is None:
+        return False, "読み取った数値の出典書類で、ファイルとしては保存していません"
+    if run.frozen:
+        return False, "凍結済みの回次の資料は取り下げられません"
+    inputs = run.path / "inputs"
+    if path.parent.resolve() != inputs.resolve() or path.name == "financials.json":
+        return False, "親の回次から引き継いだ資料です。取り下げは、その資料を投入した回次でしか行えません"
+    try:
+        titles = json.loads((inputs / "titles.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        titles = {}
+    if path.name in titles:
+        return False, "同梱の見本資料です"
+    own = inputs / "financials.json"
+    if own.exists():
+        fin = run.financials()
+        if fin is not None and any(it.source.file == path.name for it in fin.items.values()):
+            return False, ("この資料の数値はこの回次の財務データに採用済みです。取り下げると論争の前提が崩れるため、"
+                           "訂正した資料は新しい分析回次に投入してください")
+    return True, ""
+
+
+def withdraw_input(run: Run, filename: str) -> str:
+    """投入済みの資料を取り下げる。消さずに withdrawn/ へ移し、読み取り記録・データ請求・監査証跡を整える。"""
+    run._guard()
+    path = run.path / "inputs" / Path(filename).name
+    if not path.exists():
+        raise ValueError(f"資料「{filename}」が見つかりません")
+    ok, why = withdrawable(run, path)
+    if not ok:
+        raise ValueError(why)
+    at = now_iso()
+    trash = run.path / WITHDRAWN_DIR
+    trash.mkdir(parents=True, exist_ok=True)
+    stamp_ = at.replace(":", "").replace("-", "")
+    path.rename(trash / f"{stamp_}_{path.name}")
+    rec = run.path / "extracted" / f"{path.stem}.json"
+    if rec.exists():
+        rec.rename(trash / f"{stamp_}_{path.stem}.extracted.json")
+
+    reverted = []
+    requests = run.read("data_requests.json", [])
+    for r in requests:
+        received = [x for x in r.get("received", []) if not (x.get("file") == path.name and x.get("run") == run.run_id)]
+        from_this = any((v.get("source") or {}).get("file") == path.name for v in r.get("resolved_by", []))
+        changed = len(received) != len(r.get("received", [])) or from_this
+        if not changed:
+            continue
+        r["received"] = received
+        if from_this:
+            r.pop("resolved_by", None)
+        if from_this or (r["status"] == "受領（検証待ち）" and not received):
+            r["status"] = "受領（検証待ち）" if received else "請求中"
+            reverted.append(r["id"])
+    if requests:
+        run.write("data_requests.json", requests)
+
+    title = path.stem
+    run.write("audit_log.json", run.read("audit_log.json", []) + [
+        {"at": at, "actor": "人間（ライム）", "action": "投入資料の取り下げ", "file": path.name,
+         "entries": [f"保管先：{WITHDRAWN_DIR}/{stamp_}_{path.name}（削除せず保管）"]
+                    + ([f"データ請求 {'・'.join(reverted)} の受領を取り消し"] if reverted else [])}])
+    run.write("debate_log.json", run.read("debate_log.json", []) + [
+        _msg("human", "資料取り下げ", f"投入資料を取り下げ：{path.name}（以後は引用できない。これまでの発言の記録は残す）")])
+    refresh_derived(run)
+    return f"「{title}」を取り下げました（削除せず保管し、監査証跡に記録しています）"
+
+
+def opens_new_run(company: str) -> bool:
+    """財務書類を投入したとき、新しい回次を開くか（handle_upload と同じ規則）。"""
+    run = latest_run(company)
+    empty_first = run.meta.seq == 1 and not run.frozen and run.financials_source() is None
+    return (run.meta.seq == 1 and not empty_first) or run.frozen
+
+
 def handle_upload(company: str, filename: str, content: bytes, extractor=None) -> tuple[Run, list[dict], bool]:
     """追加資料を最新の回次に保存し、読み取り（tools.file_ingest）と検算ゲートにかけ、データ請求の解消イベントとして処理する。
 
@@ -408,8 +494,7 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
     """
     run = latest_run(company)
     opened = False
-    empty_first = run.meta.seq == 1 and not run.frozen and run.financials_source() is None
-    if (run.meta.seq == 1 and not empty_first) or run.frozen:   # 財務データのない第1次分析には、そのまま格納する
+    if opens_new_run(company):   # 財務データのない第1次分析には、そのまま格納する
         run = start_next_run(company, trigger=f"追加資料の投入：{filename}")
         opened = True
         prev = run.parent()

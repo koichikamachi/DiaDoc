@@ -74,6 +74,7 @@ def _ctx_of(run):
 
 
 def _docs(run, session: DebateSession, state: DebateState | None) -> None:
+    ss = st.session_state
     with st.container(border=True, key="dock-docs"):
         entries = digest.documents(run, session.ctx, state)
         st.markdown(f"**投入済みの資料**　:gray[{len(entries)}件・名前を押すと中身を見られます]")
@@ -82,11 +83,39 @@ def _docs(run, session: DebateSession, state: DebateState | None) -> None:
             return
         for i, d in enumerate(entries):
             new = "　:orange-badge[途中追加]" if d.added_round else ""
-            if st.button(f"{d.name}", key=f"doc_{i}", type="tertiary", icon=KIND_ICON[d.kind],
-                         help=f"{d.kind}・{d.origin}"):
-                _preview(d.name, run, session.ctx.fin)
+            name_col, del_col = st.columns([6, 1], vertical_alignment="center", gap="small")
+            with name_col:
+                if st.button(f"{d.name}", key=f"doc_{i}", type="tertiary", icon=KIND_ICON[d.kind],
+                             help=f"{d.kind}・{d.origin}"):
+                    _preview(d.name, run, session.ctx.fin)
+            ok, why = mock_engine.withdrawable(run, d.path)
+            if d.path is not None and d.path.parent == run.path / "inputs":   # この回次に置かれたファイルだけ屑かごを出す
+                with del_col:
+                    with st.popover("", icon=":material/delete:", disabled=not ok,
+                                    help="この資料を取り下げる" if ok else why, key=f"withdraw_pop_{i}"):
+                        st.markdown(f"**「{d.name}」を取り下げますか？**")
+                        st.caption("ファイルは消さずに回次の中の保管場所へ移し、監査証跡に記録します。"
+                                   "以後は引用できなくなりますが、これまでの発言の記録は残ります")
+                        if st.button("取り下げる", key=f"withdraw_{i}", type="primary", icon=":material/delete:"):
+                            from session import forget
+
+                            try:
+                                ss.flash = mock_engine.withdraw_input(run, d.path.name)
+                            except ValueError as e:
+                                ss.flash = str(e)
+                            forget(run)   # 引用できる資料を読み直す
+                            st.rerun()
             note = "" if d.citable else "・引用対象外"
             st.caption(f":{KIND_COLOR[d.kind]}-badge[{d.kind}]{new}　{d.origin}{note}")
+
+
+def _names(files) -> str:
+    """選んだファイル名をボタンに入れる形にする（2件以上は「ほかN件」）。"""
+    files = list(files or [])
+    return f"「{files[0].name}」" + (f"ほか{len(files) - 1}件" if len(files) > 1 else "")
+
+
+GUIDE = ":material/looks_one: 資料を選択　─►　:material/looks_two: 下のボタンで確定投入"
 
 
 def _failed_table(rows: list[dict]) -> None:
@@ -165,24 +194,32 @@ def _gate_report(run) -> None:
 def _ingest(run, session: DebateSession, frozen: bool) -> None:
     ss = st.session_state
     ss.setdefault("dock_uploader", 0)
-    with st.container(border=True):
+    n = ss.dock_uploader   # 投入のたびに増やし、入力欄を空に戻す
+    with st.container(border=True, key="dock-ingest"):
         st.markdown("**追加インプット**")
         kind = st.radio("資料の種類", (QUALI, FINANCE), key="dock_kind", label_visibility="collapsed")
         if kind == QUALI:
             if frozen:
                 st.caption(":material/lock: 凍結済みの回次には追加できません。最新の回次を選んでください")
-            with st.form("dock_quali", clear_on_submit=True, border=False):
-                name = st.text_input("資料名", placeholder="例：銀行面談メモ_10月", key="dock_name", disabled=frozen)
-                text = st.text_area("本文（貼り付け）", height=100, key="dock_text", disabled=frozen,
-                                    placeholder="面談の要点、現場の観察、取引先の反応など")
-                files = st.file_uploader("またはテキストファイル（.md／.txt）", type=["md", "txt"],
-                                         accept_multiple_files=True, key="dock_q", disabled=frozen)
-                sent = st.form_submit_button("この回次に追加して議論を続ける", icon=":material/add_notes:",
-                                             width="stretch", disabled=frozen)
-            if sent:
+            name = st.text_input("資料名", placeholder="例：銀行面談メモ_10月", key=f"dock_name_{n}", disabled=frozen)
+            text = st.text_area("本文（貼り付け）", height=100, key=f"dock_text_{n}", disabled=frozen,
+                                placeholder="面談の要点、現場の観察、取引先の反応など")
+            st.caption(GUIDE)
+            files = st.file_uploader("またはテキストファイル（.md／.txt）", type=["md", "txt"],
+                                     accept_multiple_files=True, key=f"dock_q_{n}", disabled=frozen)
+            has_text = bool((text or "").strip())
+            if files:
+                label = f"📝 選択した{_names(files)}をこの回次に追加投入"
+            elif has_text:
+                label = f"📝 貼り付けた本文「{(name or '').strip() or '追加メモ'}」をこの回次に追加投入"
+            else:
+                label = "上の枠でファイルを選択するか、本文を貼り付けてください"
+            ready = bool(files) or has_text
+            if st.button(label, key="dock_quali_send", width="stretch", type="primary" if ready else "secondary",
+                         disabled=frozen or not ready):
                 added = []
                 try:
-                    if (text or "").strip():
+                    if has_text:
                         nm = (name or "").strip() or "追加メモ"
                         intervene(session, "", attach_name=nm, attach_text=text.strip())
                         added.append(nm)
@@ -192,35 +229,43 @@ def _ingest(run, session: DebateSession, frozen: bool) -> None:
                         added.append(f.name)
                 except EmptyInterventionError:
                     pass
+                ss.dock_uploader += 1
                 ss.flash = (f"{len(added)}件の資料を追加しました。次の手から各担当者が引用できます" if added
                             else "追加する本文かファイルがありません")
                 st.rerun()
             st.caption("追加した資料は出典として引用できるようになります。担当者が読むのは本文のテキストです")
         else:
+            st.caption(GUIDE)
             files = st.file_uploader("決算書・試算表・勘定科目内訳明細書など（PDF・Excel・画像・テキスト）",
                                      type=["pdf", "xlsx", "xls", "csv", "png", "jpg", "jpeg", "txt", "md"],
-                                     accept_multiple_files=True, key=f"dock_f_{ss.dock_uploader}")
+                                     accept_multiple_files=True, key=f"dock_f_{n}")
             latest_seq = run.meta.seq
+            if not files:
+                label = "上の枠でファイルを選択してください"
+            elif mock_engine.opens_new_run(run.company):
+                label = f"📄 選択した{_names(files)}を投入して新回次を開始"
+            else:
+                from core.runs import latest_run
+
+                label = f"📄 選択した{_names(files)}を{latest_run(run.company).meta.label}に投入"
+            if st.button(label, width="stretch", key="dock_fin", type="primary" if files else "secondary",
+                         disabled=not files):
+                target = None
+                opened = None
+                for f in files:
+                    target, _, op = mock_engine.handle_upload(run.company, f.name, f.getvalue())
+                    opened = opened or (target.meta.label if op else None)
+                # 回次の選択欄はこの時点で描画済みなので直接は書き換えない。次の描画の最初（選択欄を作る前）に反映する
+                ss.pending_run_switch = (target.company, target.run_id)
+                from session import forget
+
+                forget(target)   # 財務データを採用したら、論争の文脈を読み直す
+                ss.dock_uploader += 1
+                ss.flash = (f"{opened}を開き、" if opened else "") + f"{len(files)}件を{target.meta.label}に保存しました"
+                st.rerun()
             st.caption(":material/info: 財務書類は読み取り（Gemini）と検算ゲートにかけます。"
                        + ("第1次分析を凍結して第2次分析を開き、" if latest_seq == 1 else "")
-                       + "論争はその回次で最初から始まります")
-            if st.button("財務書類を投入する", icon=":material/upload_file:", width="stretch", key="dock_fin"):
-                if not files:
-                    ss.flash = "投入するファイルを選んでください"
-                else:
-                    target = None
-                    opened = None
-                    for f in files:
-                        target, _, op = mock_engine.handle_upload(run.company, f.name, f.getvalue())
-                        opened = opened or (target.meta.label if op else None)
-                    # 回次の選択欄はこの時点で描画済みなので直接は書き換えない。次の描画の最初（選択欄を作る前）に反映する
-                    ss.pending_run_switch = (target.company, target.run_id)
-                    from session import forget
-
-                    forget(target)   # 財務データを採用したら、論争の文脈を読み直す
-                    ss.dock_uploader += 1
-                    ss.flash = (f"{opened}を開き、" if opened else "") + f"{len(files)}件を{target.meta.label}に保存しました"
-                st.rerun()
+                       + "論争はその回次で最初から始まります。財務データのない第1次分析には、そのまま入ります")
 
 
 def _status(state: DebateState | None) -> None:

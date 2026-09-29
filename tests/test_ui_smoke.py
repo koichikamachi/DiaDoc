@@ -137,10 +137,15 @@ def test_qualitative_material_is_added_to_the_current_run(data):
     from core.runs import latest_run
 
     at = _run()
-    at.text_input(key="dock_name").input("銀行面談メモ")
-    at.text_area(key="dock_text").input("メインバンクは3か月の元本返済猶予に前向き。")
-    at.button(key="FormSubmitter:dock_quali-この回次に追加して議論を続ける").click().run()
+    send = at.button(key="dock_quali_send")
+    assert send.disabled and "ファイルを選択するか" in send.label      # 何も選んでいなければ押せない
+    at.text_input(key="dock_name_0").input("銀行面談メモ")
+    at.text_area(key="dock_text_0").input("メインバンクは3か月の元本返済猶予に前向き。").run()
+    send = at.button(key="dock_quali_send")
+    assert not send.disabled and send.label == "📝 貼り付けた本文「銀行面談メモ」をこの回次に追加投入"
+    send.click().run()
     assert not at.exception, at.exception
+    assert at.text_area(key="dock_text_1").value == ""                  # 投入後は入力欄が空に戻る
     run = latest_run(COMPANY)
     assert run.run_id == "run_001_initial"                       # 回次は変わらない
     assert (run.path / "inputs" / "銀行面談メモ.md").exists()
@@ -393,7 +398,35 @@ def test_financial_upload_button_switches_to_the_new_run(data, monkeypatch):
     monkeypatch.setattr(st, "file_uploader", fake)
     at = _run()
     at.radio(key="dock_kind").set_value(next(o for o in at.radio(key="dock_kind").options if o.startswith("財務書類"))).run()
-    _btn(at, "財務書類を投入する").click().run()
+    btn = at.button(key="dock_fin")
+    assert not btn.disabled and btn.label == "📄 選択した「勘定科目内訳明細書.pdf」を投入して新回次を開始"
+    btn.click().run()
     assert not at.exception, at.exception
     assert at.session_state["run_select__" + COMPANY] == "run_002_followup"
     assert at.selectbox(key="run_select__" + COMPANY).value == "run_002_followup"
+
+
+def test_financial_button_waits_for_a_file(data):
+    at = _run()
+    at.radio(key="dock_kind").set_value(next(o for o in at.radio(key="dock_kind").options if o.startswith("財務書類"))).run()
+    btn = at.button(key="dock_fin")
+    assert btn.disabled and btn.label == "上の枠でファイルを選択してください"
+    assert any("資料を選択" in c.value and "確定投入" in c.value for c in at.caption)
+
+
+def test_duplicate_upload_can_be_withdrawn_from_the_dock(data):
+    from core.mock_engine import handle_upload
+    from core.runs import latest_run
+
+    handle_upload(COMPANY, "勘定科目内訳明細書.pdf", b"%PDF")       # 第2次分析を開く
+    handle_upload(COMPANY, "勘定科目内訳明細書.pdf", b"%PDF")       # 同じ回次への重複 → _2
+    run = latest_run(COMPANY)
+    assert (run.path / "inputs" / "勘定科目内訳明細書_2.pdf").exists()
+    at = _run()
+    labels = [b.label for b in at.button if b.key and b.key.startswith("doc_")]
+    i = labels.index("勘定科目内訳明細書_2")
+    at.button(key=f"withdraw_{i}").click().run()
+    assert not at.exception, at.exception
+    assert not (run.path / "inputs" / "勘定科目内訳明細書_2.pdf").exists()
+    assert "勘定科目内訳明細書_2" not in [b.label for b in at.button if b.key and b.key.startswith("doc_")]
+    assert any(e["action"] == "投入資料の取り下げ" for e in run.read("audit_log.json"))

@@ -181,6 +181,17 @@ def inject() -> None:
   [data-testid="stColumn"]:has(.st-key-pane-right) {{ flex: 1 1 100% !important; min-width: 100% !important; }}
   [data-testid="stColumn"]:has(.st-key-pane-center) {{ order: -1; }}
 }}
+/* ファイル選択枠：英語の「Upload」を「📁 ファイルを選択」に置き換える（押しても投入は確定しないことを明示） */
+[data-testid="stFileUploaderDropzone"] button [data-testid="stIconMaterial"] {{ display: none; }}
+[data-testid="stFileUploaderDropzone"] button [data-testid="stMarkdownContainer"] p {{ font-size: 0; line-height: 0; }}
+[data-testid="stFileUploaderDropzone"] button [data-testid="stMarkdownContainer"] p::after {{
+  content: "📁 ファイルを選択"; font-size: 0.875rem; line-height: 1.6; white-space: nowrap;
+}}
+/* 投入済みの資料：名前を省略せず折り返す（重複の「_2」まで見分けられるように）。屑かごの▼は出さない */
+.st-key-dock-docs [data-testid="stBaseButton-tertiary"] p {{ white-space: normal; overflow-wrap: anywhere; text-align: left; }}
+.st-key-dock-docs [data-testid="stBaseButton-tertiary"] * {{ overflow: visible; text-overflow: clip; }}
+.st-key-dock-docs [data-testid="stPopoverButton"] div[aria-hidden="true"] {{ display: none; }}
+.st-key-dock-docs [data-testid="stPopoverButton"] {{ padding: 0.2rem 0.45rem; min-height: 0; }}
 /* 768px 未満では Streamlit が本文を絶対配置にし、開いたサイドバーを本文の上に重ねる。
    本文を通常の配置に戻して、サイドバーを開いたら本文がそのぶん横に詰まるようにする（重ならない）。 */
 @media (max-width: 767.98px) {{
