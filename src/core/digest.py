@@ -86,6 +86,25 @@ def documents(run, ctx, state=None) -> list[DocEntry]:
     return out
 
 
+def dropped_explaining(record: dict) -> list[str]:
+    """読み取れずに捨てた行のうち、検算の不一致を説明できそうなもの（その金額が差額に等しい、または合計が等しい）。
+
+    画面で「読み取れなかったことによる可能性」と注意するのは、この一覧が空でないときだけにする。
+    """
+    from tools.file_ingest import is_reference_line
+
+    rows = [r for r in ((record.get("report") or {}).get("dropped_values") or [])
+            if r.get("cur") is not None and not is_reference_line(r.get("label"), r.get("section"))]
+    fails = [(abs(f["diff"]), f.get("tolerance") or 0) for f in record.get("failed_checks") or []
+             if f.get("period") == "当期" and f.get("diff") is not None]
+    hits = [r["label"] for r in rows if any(abs(abs(r["cur"]) - d) <= t for d, t in fails)]
+    if not hits and rows:
+        total = sum(abs(r["cur"]) for r in rows)
+        if any(abs(total - d) <= t for d, t in fails):
+            hits = [r["label"] for r in rows]
+    return hits
+
+
 def decode_text(content: bytes) -> str:
     """テキスト資料の文字コードを推定して読む（UTF-8、なければ Windows の Shift_JIS）。"""
     for enc in ("utf-8-sig", "cp932"):

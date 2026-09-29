@@ -134,4 +134,73 @@ def test_dock_explains_why_the_gate_stopped(tmp_path, monkeypatch):
     at.selectbox(key="company").set_value(company).run()
     assert not at.exception, at.exception
     assert any("重大な計算不一致" in e.value for e in at.error)
-    assert any("読み取れなかった行" in m.value for m in at.markdown)
+    assert any("当てはめられなかった行" in m.value for m in at.markdown)
+    assert any("「保険積立金・その他」の金額と一致" in c.value for c in at.caption)   # 差額 9,500 を説明できる行だけを名指し
+
+
+# ---------------------------------------------------------------------------
+# 参考表示・集計行（2026-09-29 の臨床テスト：「（参考）借入金合計」を読み取れなかった行として警告した）
+# ---------------------------------------------------------------------------
+REF = ("unknown", "（参考）借入金合計", 110000, BS)
+
+
+def test_reference_line_is_kept_out_of_the_statement():
+    fin, rep = normalize(_extraction(LINES + [REF]), "x.xlsx", "C9", "gemini:fake")
+    assert rep.dropped_values == [] and rep.reference_lines[0]["label"] == "（参考）借入金合計"
+    assert fin.items["ltd"].cur == 100000 and fin.items["stl"].cur == 10000
+
+
+def test_reference_line_is_excluded_even_if_the_reader_gave_it_a_real_key():
+    """読み取り側が「（参考）借入金合計」に長期借入金の key を付けても、本表の長期借入金は変わらない。"""
+    fin, rep = normalize(_extraction(LINES + [("ltd", "（参考）借入金合計", 110000, BS)]), "x.xlsx", "C9", "g")
+    assert fin.items["ltd"].cur == 100000 and len(rep.reference_lines) == 1
+
+
+def test_aggregate_row_overlapping_a_detail_account_is_set_aside():
+    fin, rep = normalize(_extraction(LINES + [("ltd", "借入金合計", 110000, BS)]), "x.xlsx", "C9", "g")
+    assert fin.items["ltd"].cur == 100000
+    assert rep.reference_lines[0]["label"] == "借入金合計" and "重複" in rep.reference_lines[0]["reason"]
+    by = {c.name: c.status for c in reconcile(fin).checks}
+    assert by["固定負債合計"] == "一致"
+
+
+def test_warning_names_only_lines_that_explain_the_difference():
+    from core.digest import dropped_explaining
+
+    fails = [{"name": "投資その他の資産合計", "period": "当期", "diff": -9500, "tolerance": 2},
+             {"name": "販管費合計", "period": "当期", "diff": -2000, "tolerance": 5}]
+    rec = {"failed_checks": fails, "report": {"dropped_values": [
+        {"label": "保険積立金・その他", "cur": 9500}, {"label": "謎の行", "cur": 777}]}}
+    assert dropped_explaining(rec) == ["保険積立金・その他"]
+    rec["report"]["dropped_values"] = [{"label": "謎の行", "cur": 777}]
+    assert dropped_explaining(rec) == []                                             # 無関係な行では注意しない
+
+
+def test_old_records_show_reference_lines_apart(tmp_path, monkeypatch):
+    """修正前の読み取り記録（参考表示が捨てた行に入っている）でも、画面では参考表示として分けて出す。"""
+    import json
+    import shutil
+    from pathlib import Path
+
+    from streamlit.testing.v1 import AppTest
+
+    from core.mock_engine import handle_upload
+    from core.runs import create_company
+
+    root = Path(__file__).resolve().parents[1]
+    shutil.copytree(root / "data", tmp_path / "data")
+    monkeypatch.setenv("DBD_DATA_DIR", str(tmp_path / "data"))
+    company = create_company("乙精機", fictional=True)
+    run, _, _ = handle_upload(company, "b.xlsx", b"x", extractor=_Fixed(_extraction()))
+    rec_path = run.path / "extracted" / "b.json"
+    rec = json.loads(rec_path.read_text(encoding="utf-8"))
+    rec["report"]["dropped_values"] = [{"label": "（参考）借入金合計", "section": BS, "prev": None, "cur": 110000, "page": BS}]
+    rec["report"].pop("reference_lines", None)
+    rec_path.write_text(json.dumps(rec, ensure_ascii=False), encoding="utf-8")
+    at = AppTest.from_file(str(root / "src/ui/app.py"), default_timeout=30)
+    at.run()
+    at.selectbox(key="company").set_value(company).run()
+    assert not at.exception, at.exception
+    assert not any("当てはめられなかった行" in m.value for m in at.markdown)
+    assert any("本表の数値ではないため" in c.value for c in at.caption)                  # 参考表示の説明だけが出る
+    assert not any("可能性があります" in c.value for c in at.caption)

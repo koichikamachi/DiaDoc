@@ -135,18 +135,44 @@ def _failed_table(rows: list[dict]) -> None:
         st.caption("不一致の明細は記録されていません（古い読み取り記録）。財務・4P突合マトリクスの読み取り結果をご覧ください")
 
 
-def _dropped(x: dict, hint: str) -> None:
-    """読み取りで標準科目に当てはめられず、金額ごと捨てた行。検算の不一致・未確認の原因になりうる。"""
-    rows = ((x.get("report") or {}).get("dropped_values")) or []
-    if not rows:
-        return
-    body = "".join(f"<tr><td>{html.escape(r.get('section') or '')}</td><td>{html.escape(r.get('label') or '')}</td>"
-                   f"<td>{'' if r.get('prev') is None else format(r['prev'], ',')}</td>"
-                   f"<td>{'' if r.get('cur') is None else format(r['cur'], ',')}</td></tr>" for r in rows)
-    st.markdown(f"**読み取れなかった行（金額あり・{len(rows)}件）**")
-    st.html('<div class="dd-cmp-wrap"><table class="dd-cmp"><thead><tr><th>区分</th><th>原資料の科目名</th><th>前期</th>'
-            '<th>当期</th></tr></thead><tbody>' + body + "</tbody></table></div>")
-    st.caption(hint)
+def _dropped(x: dict, stopped_by_mismatch: bool) -> None:
+    """読み取りで標準科目に当てはめられなかった行と、本表の行ではない参考表示の行。
+
+    「不一致の原因かもしれない」と注意するのは、捨てた行の金額で差額が説明できるときだけ（無関係な行で人を惑わせない）。
+    """
+    from tools.file_ingest import is_reference_line
+
+    rep = x.get("report") or {}
+    raw = rep.get("dropped_values") or []
+    # 修正前の読み取り記録では参考表示も「捨てた行」に入っているので、表示のときにも分ける
+    rows = [r for r in raw if not is_reference_line(r.get("label"), r.get("section"))]
+    refs = (rep.get("reference_lines") or []) + [
+        r | {"reason": "参考表示・内書き（本表の行ではない）"} for r in raw if r not in rows]
+
+    def table(rs, cols=True):
+        body = "".join(f"<tr><td>{html.escape(r.get('section') or '')}</td><td>{html.escape(r.get('label') or '')}</td>"
+                       f"<td>{'' if r.get('prev') is None else format(r['prev'], ',')}</td>"
+                       f"<td>{'' if r.get('cur') is None else format(r['cur'], ',')}</td>"
+                       + (f"<td>{html.escape(r.get('reason') or '')}</td>" if not cols else "") + "</tr>" for r in rs)
+        head = "<th>区分</th><th>原資料の科目名</th><th>前期</th><th>当期</th>" + ("" if cols else "<th>扱い</th>")
+        st.html(f'<div class="dd-cmp-wrap"><table class="dd-cmp"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>')
+
+    if rows:
+        st.markdown(f"**標準科目に当てはめられなかった行（金額あり・{len(rows)}件）**")
+        table(rows)
+        hits = digest.dropped_explaining(x)
+        if stopped_by_mismatch and hits:
+            st.caption("差額が「" + "」「".join(hits) + "」の金額と一致します。不一致は元資料の誤りではなく、"
+                       "この行を読み取れなかったことによる可能性があります")
+        elif stopped_by_mismatch:
+            st.caption("これらの行は検算に入っていませんが、金額は不一致の差額と一致しません。不一致の原因ではないとみられます")
+        else:
+            st.caption("これらの行は検算に入っていません。資料を補うか、科目名の書き方を直して再投入してください")
+    if refs:
+        with st.expander(f"参考表示として検算に使わなかった行（{len(refs)}件）", icon=":material/info:"):
+            table(refs, cols=False)
+            st.caption("「（参考）借入金合計」のような参考表示・内書きや、内訳と重なる集計行は、本表の数値ではないため"
+                       "標準科目に当てはめず、検算にも使いません（同じ金額を二重に数えないため）")
 
 
 def _gate_report(run) -> None:
@@ -197,12 +223,12 @@ def _gate_report(run) -> None:
                 if m.get("reasons"):
                     st.caption("重大と判定した理由：" + "／".join(m["reasons"]))
                 _failed_table(x.get("failed_checks") or [])
-                _dropped(x, "不一致は、元資料の誤りではなく、これらの行を読み取れなかったことによる可能性があります")
+                _dropped(x, stopped_by_mismatch=True)
         elif gate == "未確認":
             with st.container(border=True):
                 st.error(f"**{name}**：中心となる検算（{'・'.join(m.get('unverified_core', []))}）を確かめられないため、"
                          "診断プロセスを停止しました。確かめていない数値で論争を始めることはしません。", icon=":material/help:")
-                _dropped(x, "資料を補うか、読み取れる形（科目名の書き方など）に直して再投入してください")
+                _dropped(x, stopped_by_mismatch=False)
         elif gate == "差し替え待ち":
             st.info(f"**{name}**：差し替えを選びました。訂正した財務諸表を投入してください（この資料は採用していません）。",
                     icon=":material/sync:")
