@@ -1,23 +1,60 @@
-__pycache__/
-*.pyc
-.pytest_cache/
-.venv/
+# =============================================================================
+# DiaDoc の .gitignore
+# 方針：Git に入れてよいのは「コード」と「配布用の見本（C001・C002 など、既に登録済みのもの）」だけ。
+# 実在企業の資料・作業データ・出力・秘密情報は、誤って git add しても入らないようにする。
+# 見本に資料を足すと決めたときだけ、git add -f で明示的に加える（.githooks/pre-commit も参照）。
+# =============================================================================
+
+# --- 秘密情報・個人設定 --------------------------------------------------------
 .env
 .env.*
 !.env.example
 *.env
+*.local
+.streamlit/secrets.toml
 secrets/
 *.key
 *.pem
 service-account*.json
 credentials*.json
 client_secret*.json
+
+# --- 作業データ（data/ は登録済みの見本以外すべて追跡しない） ---------------------
+# 既に登録済みのファイル（C001・C002 の見本）は、この指定があっても追跡が続く。
+# 新しく生まれるもの（新しい会社、新しい回次、投入した資料、読み取り結果、論争の途中状態、
+# 実質化の調整）は、既定で Git に入らない。
+/data/**
+
+# --- データベース・途中状態 -----------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.jsonl
+
+# --- 原本資料・出力（登録済みの見本・テスト用の表は追跡が続く） -------------------
+*.pdf
+*.xlsx
+*.xlsm
+*.xls
+*.docx
+*.doc
+*.pptx
+*.csv
+uploads/
+tmp/
+temp/
+exports/
+output/
+outputs/
+reports/
+
+# --- Python・OS の生成物 ------------------------------------------------------
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
 desktop.ini
 Thumbs.db
 .DS_Store
-
-# 論争の途中状態（分析回次ごとのチェックポイント）
-data/**/checkpoints.sqlite*
-data/**/debate_trace.jsonl
-# 実質化の調整（利用者が回次ごとに入力する。見本データには含めない）
-data/**/adjustments.json

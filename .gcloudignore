@@ -1,10 +1,31 @@
-# gcloud run deploy --source . で Cloud Build に送らないもの
-# .gitignore の除外（.env や実行時ファイル）をそのまま引き継ぐ
-#!include:.gitignore
+# gcloud run deploy --source . で Cloud Build に送らないもの。
+# .gitignore は取り込まない（取り込むと、見本の data/ や見本の xlsx まで送られなくなる）。
+# 公開は scripts/deploy.ps1 がコミット済みの内容だけを取り出して行うので、ここは最後の防壁。
 .git
 .gitignore
 .gcloudignore
+.githooks/
 tests/
 scripts/
 docs/
 *.docx
+.env
+.env.*
+*.env
+*.local
+.streamlit/secrets.toml
+secrets/
+*.key
+*.pem
+service-account*.json
+credentials*.json
+client_secret*.json
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+desktop.ini
+data/**/checkpoints.sqlite*
+data/**/debate_trace.jsonl
+data/**/adjustments.json
+data/**/*.tmp

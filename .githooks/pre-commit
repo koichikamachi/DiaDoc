@@ -1,0 +1,33 @@
+#!/bin/sh
+# DiaDoc の漏洩防止：コミットの直前に、作業データ・原本資料・秘密情報が混ざっていないか確かめる。
+# 有効にする（リポジトリごとに1回）：git config core.hooksPath .githooks
+# 見本データを意図して更新するときだけ：DBD_ALLOW_DATA=1 git commit ...（PowerShell は $env:DBD_ALLOW_DATA="1"）
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+problems=""
+
+# 1. 秘密情報のファイル（これは許可の指定があっても止める）
+secret=$(printf '%s\n' "$staged" | grep -E '(^|/)(\.env($|\.)|.*\.env$|secrets/|.*\.(key|pem)$|service-account.*\.json$|credentials.*\.json$|client_secret.*\.json$|\.streamlit/secrets\.toml$)' | grep -v '\.env\.example$')
+[ -n "$secret" ] && problems="${problems}秘密情報のファイル:\n${secret}\n"
+
+# 2. 追加する行の中の API キーらしき文字列（これも止める）
+keys=$(git diff --cached -U0 | grep -E '^\+' | grep -v '^+++' | grep -E 'AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_-]{20,}|(API_KEY|APIKEY|api_key|SECRET|TOKEN)[A-Za-z_]*[[:space:]]*[=:][[:space:]]*["'"'"']?[0-9A-Za-z_./+-]{20,}')
+[ -n "$keys" ] && problems="${problems}API キーらしき文字列を含む行があります（値は表示しません）\n"
+
+if [ "$DBD_ALLOW_DATA" != "1" ]; then
+  # 3. data/ の変更（画面で試した跡・実在企業の資料）
+  data=$(printf '%s\n' "$staged" | grep -E '^data/')
+  [ -n "$data" ] && problems="${problems}data/ の変更（見本を意図して更新するなら DBD_ALLOW_DATA=1）:\n${data}\n"
+  # 4. 原本資料・データベース・出力
+  raw=$(printf '%s\n' "$staged" | grep -iE '\.(pdf|xlsx|xlsm|xls|docx|doc|pptx|csv|db|sqlite3?|jsonl)$|\.sqlite3?-')
+  [ -n "$raw" ] && problems="${problems}原本資料・データベース・出力のファイル:\n${raw}\n"
+fi
+
+if [ -n "$problems" ]; then
+  printf '\n[DiaDoc] コミットを止めました。\n' >&2
+  printf '%b' "$problems" >&2
+  printf '\n取り消すには: git restore --staged <ファイル>\n' >&2
+  exit 1
+fi
+exit 0
