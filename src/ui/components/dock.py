@@ -191,7 +191,7 @@ def _gate_report(run) -> None:
                      icon=":material/error:")
             continue
         gate, m, name = x.get("gate"), x.get("materiality") or {}, x.get("file", "")
-        head = m.get("headline", "")
+        head = digest.gate_headline(x)
         if gate == "軽微":
             with st.container(border=True):
                 st.warning(f"**{name}**：軽微な計算差異（{head}）を検出しました。"

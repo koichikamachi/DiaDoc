@@ -86,6 +86,24 @@ def documents(run, ctx, state=None) -> list[DocEntry]:
     return out
 
 
+def gate_headline(record: dict) -> str:
+    """検算ゲートの見出し。修正前の読み取り記録（複数の差額を「差額」とだけ書いたもの）も、件数と内訳付きで出し直す。"""
+    from core.materiality import TO_THOUSAND
+
+    m = record.get("materiality") or {}
+    head = m.get("headline", "")
+    fails = [f for f in record.get("failed_checks") or [] if f.get("diff") is not None]
+    if len(fails) <= 1 or head.startswith("差額合計") or m.get("total_diff_thousand") is None:
+        return head
+    scale = TO_THOUSAND.get(((record.get("financials") or {}).get("unit")) or "千円", 1.0)
+    parts = sorted(fails, key=lambda f: -abs(f["diff"]))
+    items = "・".join(f"{f['name']}{'（前期）' if f.get('period') == '前期' else ''} {abs(f['diff']) * scale:,.0f}"
+                      for f in parts[:3])
+    more = f"ほか{len(parts) - 3}件" if len(parts) > 3 else ""
+    pct = "—" if m.get("pct_assets") is None else f"{m['pct_assets']:.3%}"
+    return f"差額合計: {m['total_diff_thousand']:,.0f}千円（{len(parts)}件：{items}{more}）、総資産の{pct}"
+
+
 def dropped_explaining(record: dict) -> list[str]:
     """読み取れずに捨てた行のうち、検算の不一致を説明できそうなもの（その金額が差額に等しい、または合計が等しい）。
 

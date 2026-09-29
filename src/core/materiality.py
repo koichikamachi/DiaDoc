@@ -49,9 +49,18 @@ class Materiality:
     failures: list[Failure] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
 
+    scale: float = 1.0       # 表示単位 → 千円
+
     def headline(self) -> str:
+        """画面の見出し。差額が複数の検算にわたるときは「差額合計」とし、件数と内訳（大きい順・3件まで）を添える。"""
         pct = "—" if self.pct_assets is None else f"{self.pct_assets:.3%}"
-        return f"差額: {self.total_diff_thousand:,.0f}千円、総資産の{pct}"
+        if len(self.failures) <= 1:
+            return f"差額: {self.total_diff_thousand:,.0f}千円、総資産の{pct}"
+        parts = sorted(self.failures, key=lambda f: -abs(f.diff))
+        items = "・".join(f"{f.check}{'（前期）' if f.period == 'prev' else ''} {abs(f.diff) * self.scale:,.0f}"
+                          for f in parts[:3])
+        more = f"ほか{len(parts) - 3}件" if len(parts) > 3 else ""
+        return (f"差額合計: {self.total_diff_thousand:,.0f}千円（{len(parts)}件：{items}{more}）、総資産の{pct}")
 
 
 def failures(rec: ReconciliationReport) -> list[Failure]:
@@ -92,7 +101,7 @@ def assess(fin: Financials, rec: ReconciliationReport) -> Materiality | None:
             reasons.append(f"売上高の{ps:.3%}（0.5%以上）")
     if thousand >= ABS_LIMIT_THOUSAND:
         reasons.append(f"差額{thousand:,.0f}千円（100万円以上）")
-    return Materiality("重大" if reasons else "軽微", total, thousand, pa, ps, fs, reasons)
+    return Materiality("重大" if reasons else "軽微", total, thousand, pa, ps, fs, reasons, scale)
 
 
 def booked_to(f: Failure) -> str:

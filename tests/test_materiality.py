@@ -124,3 +124,29 @@ def test_major_upload_is_blocked(data):
     assert "重大な計算不一致" in added[-1]["text"] and "再投入" in added[-1]["text"]
     with pytest.raises(ValueError):
         approve_rounding(run, "決算書.pdf")
+
+
+def test_headline_lists_the_parts_when_several_checks_differ():
+    from core.materiality import Failure, Materiality
+
+    fs = [Failure("段階利益", "販管費合計", "cur", 70_657, 73_657, -3_000),
+          Failure("原価の流れ", "売上原価（調整表）", "cur", 252_120, 275_751, -23_631)]
+    m = Materiality("重大", 26_631, 26_631.0, 26_631 / 424_948, 26_631 / 322_243, fs, [])
+    assert m.headline() == ("差額合計: 26,631千円（2件：売上原価（調整表） 23,631・販管費合計 3,000）、"
+                            f"総資産の{26_631 / 424_948:.3%}")
+    many = fs + [Failure("BS内訳", "流動資産合計", "prev", 1, 2, -1), Failure("BS内訳", "負債合計", "cur", 5, 7, -2)]
+    m2 = Materiality("重大", 26_634, 26_634.0, 0.1, 0.1, many, [])
+    assert "4件：" in m2.headline() and "ほか1件" in m2.headline() and "流動資産合計（前期）" not in m2.headline()
+
+
+def test_old_gate_records_get_the_new_headline():
+    from core.digest import gate_headline
+
+    rec = {"materiality": {"headline": "差額: 26,631千円、総資産の6.267%", "total_diff_thousand": 26631.0,
+                           "pct_assets": 26_631 / 424_948},
+           "failed_checks": [{"name": "販管費合計", "period": "当期", "diff": -3000},
+                             {"name": "売上原価（調整表）", "period": "当期", "diff": -23631}],
+           "financials": {"unit": "千円"}}
+    assert gate_headline(rec).startswith("差額合計: 26,631千円（2件：売上原価（調整表） 23,631・販管費合計 3,000）")
+    rec["failed_checks"] = rec["failed_checks"][:1]
+    assert gate_headline(rec) == "差額: 26,631千円、総資産の6.267%"                    # 1件ならそのまま
