@@ -100,6 +100,9 @@ def sidebar() -> tuple[Run, str]:
         runs = list_runs(ss.company)
         ids = [r.run_id for r in runs]
         rk = run_key(ss.company)
+        pending = ss.pop("pending_run_switch", None)   # 資料投入で開いた回次（選択欄を作る前にだけ書き換えられる）
+        if pending and pending[0] == ss.company and pending[1] in ids:
+            ss[rk] = pending[1]
         if ss.get(rk) not in ids:
             ss[rk] = ids[-1]
         labels = {r.run_id: f"{r.meta.label}: {r.meta.as_of}" + ("（凍結）" if r.frozen else "（作業中）") for r in runs}

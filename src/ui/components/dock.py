@@ -213,7 +213,8 @@ def _ingest(run, session: DebateSession, frozen: bool) -> None:
                     for f in files:
                         target, _, op = mock_engine.handle_upload(run.company, f.name, f.getvalue())
                         opened = opened or (target.meta.label if op else None)
-                    ss[f"run_select__{run.company}"] = target.run_id
+                    # 回次の選択欄はこの時点で描画済みなので直接は書き換えない。次の描画の最初（選択欄を作る前）に反映する
+                    ss.pending_run_switch = (target.company, target.run_id)
                     from session import forget
 
                     forget(target)   # 財務データを採用したら、論争の文脈を読み直す

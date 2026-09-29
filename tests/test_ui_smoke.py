@@ -1,7 +1,7 @@
 """UIプロトタイプの動作確認。
 
 同梱のサンプルデータを一時フォルダに複製して使い、本物の data/ は書き換えない。
-ファイル投入窓そのものは AppTest で操作できないため、投入処理は mock_engine を直接呼んで回次の切り替えを確かめる。
+ファイル投入窓は AppTest で操作できないため、投入処理は mock_engine を直接呼ぶか、file_uploader を差し替えて確かめる。
 """
 
 from __future__ import annotations
@@ -368,3 +368,32 @@ def test_benchmark_is_labelled_with_the_official_survey(data):
     assert not at.exception, at.exception
     assert any("比較基準：中小企業実態基本調査（製造業統計）" in m.value for m in at.markdown)
     assert not any("仮置き" in w.value for w in at.warning)
+
+
+class _Upload:
+    def __init__(self, name: str, content: bytes):
+        self.name, self._content = name, content
+
+    def getvalue(self) -> bytes:
+        return self._content
+
+
+def test_financial_upload_button_switches_to_the_new_run(data, monkeypatch):
+    """投入ボタンから回次が切り替わる（描画済みの回次選択欄を直接書き換えて止まらない）。"""
+    import streamlit as st
+
+    real = st.file_uploader
+
+    def fake(label, *a, **kw):
+        if str(kw.get("key", "")).startswith("dock_f_"):
+            real(label, *a, **kw)
+            return [_Upload("勘定科目内訳明細書.pdf", b"%PDF")]
+        return real(label, *a, **kw)
+
+    monkeypatch.setattr(st, "file_uploader", fake)
+    at = _run()
+    at.radio(key="dock_kind").set_value(next(o for o in at.radio(key="dock_kind").options if o.startswith("財務書類"))).run()
+    _btn(at, "財務書類を投入する").click().run()
+    assert not at.exception, at.exception
+    assert at.session_state["run_select__" + COMPANY] == "run_002_followup"
+    assert at.selectbox(key="run_select__" + COMPANY).value == "run_002_followup"
