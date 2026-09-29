@@ -57,7 +57,7 @@ def test_crisis_cash_base():
 
 
 def test_sample_company_has_no_cash_gap():
-    """アルファ製菓（第73期単体）は資金流出がなく、必要CFは0。トリアージの前提がない。"""
+    """C001 アルファ製菓（モデル企業、第73期単体）は資金流出がなく、必要CFは0。トリアージの前提がない。"""
     fin = latest_run("C001_sample_alpha").financials()
     b = cash_base(fin)
     assert b.complete and b.free_cf > 0 and b.required_cf == 0
@@ -120,7 +120,7 @@ def test_no_outflow_means_no_runway_limit():
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("b", [
     bridge(),                                                                  # 人件費の削減
-    bridge(account="sales", direction="増", amount=100_000, cf=12_000, lead=6),  # 売上増（限界利益分だけ資金効果）
+    bridge(account="sales", direction="増", amount=103_000, cf=12_000, lead=6),  # 売上増（限界利益分だけ資金効果）
     bridge(account="land", direction="減", amount=80_000, cf=80_000, lead=4, recurring=False),  # 土地売却
     bridge(account="ltd", direction="増", amount=30_000, cf=30_000, lead=1, recurring=False),   # 借入
 ])

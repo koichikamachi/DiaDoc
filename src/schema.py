@@ -63,6 +63,23 @@ class SupplementaryItem(BaseModel):
     note: str = ""
 
 
+class RoundingAdjustment(BaseModel):
+    """人が承認した端数調整差額（検算ゲートの「軽微な差異」を吸収する記録）。
+
+    書類に書かれた合計は正として残し、内訳の合計とのずれを、この行で埋める。
+    booked_to は計上先の区分（その他流動資産・その他流動負債・雑損益）。
+    """
+
+    group: str
+    check: str
+    period: str                 # prev / cur
+    amount: int                 # 計算値 + amount ＝ 報告値（表示単位）
+    booked_to: str
+    approved_by: str = "人間（ライム）"
+    approved_at: str = ""
+    file: str = ""
+
+
 class Financials(BaseModel):
     company_id: str
     fiscal_period: str
@@ -73,6 +90,7 @@ class Financials(BaseModel):
     documents: dict[str, dict] = Field(default_factory=dict)
     items: dict[str, LineItem]
     supplementary: dict[str, SupplementaryItem] = Field(default_factory=dict)
+    rounding_adjustments: list[RoundingAdjustment] = Field(default_factory=list)
 
     def value(self, key: str, period: str = "cur") -> int | None:
         item = self.items.get(key)
@@ -113,6 +131,7 @@ class PeriodCheck(BaseModel):
     diff: int | None
     tolerance: int
     status: CheckStatus
+    adjusted: int = 0           # 承認された端数調整差額（計算値に加えた額）
 
 
 class CheckResult(BaseModel):
@@ -134,6 +153,11 @@ class ReconciliationReport(BaseModel):
 
     def count(self, status: CheckStatus) -> int:
         return sum(1 for c in self.checks if c.status == status)
+
+    @property
+    def adjusted_count(self) -> int:
+        """人が承認した端数調整差額で一致させた項目の数。"""
+        return sum(1 for c in self.checks for p in c.periods if p.adjusted)
 
     @property
     def rounding_diffs(self) -> int:

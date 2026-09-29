@@ -26,6 +26,7 @@ class Indicator:
     when: Callable[[Financials], bool] | None = None   # 会社によって意味がある場合だけ出す
     real_bs: bool = False                               # 実質本業BSで値が変わる（総資産・自己資本比率・ROA）
     why: str = ""                                       # なぜ見るのか（画面の説明）
+    chart: bool = True                                  # 比率の横棒グラフに載せる（100%を超える比率は表だけ）
 
 
 @dataclass
@@ -86,6 +87,7 @@ RATIOS: tuple[Indicator, ...] = (   # 比率の突合（同業平均・ベンチ
     Indicator("purchase_ratio", "商品仕入高比率（売上高に占める）", "ratio", "当期商品仕入高 ÷ 売上高", ("pur",), ("sales",)),
     Indicator("equity_ratio", "自己資本比率", "ratio", "純資産 ÷ 総資産", ("tna",), ("ta",), real_bs=True),
     Indicator("div_dep", "経常利益に占める受取配当金", "ratio", "受取配当金 ÷ 経常利益", ("div",), ("ord",)),
+    Indicator("current_ratio", "流動比率", "ratio", "流動資産 ÷ 流動負債", ("tca",), ("tcl",), chart=False),
 )
 
 

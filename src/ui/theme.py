@@ -181,6 +181,12 @@ def inject() -> None:
   [data-testid="stColumn"]:has(.st-key-pane-right) {{ flex: 1 1 100% !important; min-width: 100% !important; }}
   [data-testid="stColumn"]:has(.st-key-pane-center) {{ order: -1; }}
 }}
+/* 768px 未満では Streamlit が本文を絶対配置にし、開いたサイドバーを本文の上に重ねる。
+   本文を通常の配置に戻して、サイドバーを開いたら本文がそのぶん横に詰まるようにする（重ならない）。 */
+@media (max-width: 767.98px) {{
+  [data-testid="stMain"] {{ position: relative !important; width: 100% !important; min-width: 0 !important; }}
+  section[data-testid="stSidebar"][aria-expanded="true"] {{ width: min(300px, 45vw) !important; min-width: min(240px, 45vw) !important; }}
+}}
 @media (max-width: 700px) {{
   .block-container {{ padding-left: .8rem; padding-right: .8rem; }}
   .stTabs [role="tab"] p, .stTabs [data-baseweb="tab"] p {{ font-size:1rem !important; }}

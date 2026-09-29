@@ -162,9 +162,10 @@ def run_check(fin: Financials, check: Check) -> CheckResult:
             periods.append(PeriodCheck(period=period, computed=computed, reported=reported, diff=None,
                                        tolerance=tol, status="未確認"))
             continue
-        diff = computed - reported
+        adj = sum(a.amount for a in fin.rounding_adjustments if a.check == check.name and a.period == period)
+        diff = computed + adj - reported
         periods.append(PeriodCheck(period=period, computed=computed, reported=reported, diff=diff,
-                                   tolerance=tol, status="一致" if abs(diff) <= tol else "不一致"))
+                                   tolerance=tol, status="一致" if abs(diff) <= tol else "不一致", adjusted=adj))
     statuses = {p.status for p in periods}
     status = "不一致" if "不一致" in statuses else ("未確認" if "未確認" in statuses else "一致")
     return CheckResult(group=check.group, name=check.name, n_components=len(check.terms),

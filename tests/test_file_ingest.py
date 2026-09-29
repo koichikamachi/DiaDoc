@@ -100,7 +100,7 @@ def test_mock_pipeline_passes_reconciliation_gate():
     assert out.reconciliation.total == 38
     assert out.reconciliation.count("一致") == 38
     assert out.reconciliation.count("不一致") == 0
-    assert out.financials.items["sales"].cur == 27328784
+    assert out.financials.items["sales"].cur == 28148648
 
 
 def test_misread_number_stops_the_gate():
@@ -199,7 +199,7 @@ def test_merge_fills_only_missing_and_reports_conflicts():
     new.items["sales"] = base.items["sales"].model_copy(update={"cur": 1})  # 食い違い
     merged, conflicts = merge_missing(base, new)
     assert merged.items["sga_freight"].cur == 2188364  # 欠けていた科目は埋まる
-    assert merged.items["sales"].cur == 27328784  # 既存の値は上書きしない
+    assert merged.items["sales"].cur == 28148648  # 既存の値は上書きしない
     assert any("売上高" in c for c in conflicts)
 
 
@@ -270,7 +270,7 @@ def _as_read_by_gemini_on_2026_09_27() -> Extraction:
     ex = MockExtractor().extract("73_securities-report.pdf", b"")
     for it in ex.items:
         if it.key == "dvd":
-            it.prev, it.cur = -it.prev, -it.cur  # △240,240、△313,354 を負で記録
+            it.prev, it.cur = -it.prev, -it.cur  # △247,447、△322,755 を負で記録
         for key, period in DASH_ZERO_ITEMS:
             if it.key == key:
                 setattr(it, period, None)  # 「－」を null（未確認）として記録
@@ -281,7 +281,7 @@ def test_regression_negative_dividend_is_normalized_and_gate_no_longer_stops():
     from core.guardrails import reconcile
 
     fin, rep = normalize(_as_read_by_gemini_on_2026_09_27(), "73_securities-report.pdf", COMPANY, "gemini:m")
-    assert fin.items["dvd"].cur == 313354 and fin.items["dvd"].prev == 240240
+    assert fin.items["dvd"].cur == 322755 and fin.items["dvd"].prev == 247447
     assert any("剰余金の配当" in r and "符号を正に統一" in r for r in rep.remapped)
     rec = reconcile(fin)
     assert rec.count("不一致") == 0  # 当日は「繰越利益剰余金の動き」が差626,708で停止していた
@@ -295,7 +295,7 @@ def test_regression_the_nine_missing_values_are_all_zero_in_the_truth():
 
 
 # ---------------------------------------------------------------------------
-# 販売費・一般管理費の区分開示（2回目の実証テスト、有報第73期 p.100 の実際の値）
+# 販売費・一般管理費の区分開示（2回目の実証テスト、有報第73期（モデル） p.100 の実際の値）
 # ---------------------------------------------------------------------------
 P100 = [  # (key, 科目名, 販売費 前期・当期, 一般管理費 前期・当期)
     ("sga_salary", "給料及び手当", (465322, 469368), (253364, 269244)),
@@ -359,3 +359,15 @@ def test_prompt_asks_for_section_and_forbids_summing():
     GeminiExtractor(client=client, model="m").extract("a.pdf", b"%PDF")
     prompt = client.models.calls[0].contents[-1]
     assert "section に「販売費」または「一般管理費」と書け。合計は計算するな" in prompt
+
+
+def test_text_financial_statement_passes_the_gate():
+    """財務書類を .md（テキスト）で投入しても、抽出と検算ゲートが通る。本文は包んで Gemini に渡す。"""
+    crisis = ROOT / "data/companies/C002_sample_crisis/runs/run_001_initial/inputs/financials.json"
+    ex = MockExtractor(crisis).extract("x", b"")
+    client = FakeClient(ex)
+    text = "# 決算報告書 第62期（架空）\n\n| 科目 | 当期 |\n|---|---|\n| 売上高 | 1,180,000 |\n".encode("utf-8")
+    out = ingest("決算報告書_第62期.md", text, "C002_sample_crisis", GeminiExtractor(client=client, model="m"))
+    assert out.gate == "通過"
+    part = client.models.calls[0].contents[0]
+    assert isinstance(part, str) and '<untrusted_document name="決算報告書_第62期.md">' in part and "1,180,000" in part

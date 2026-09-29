@@ -89,10 +89,23 @@ def _docs(run, session: DebateSession, state: DebateState | None) -> None:
             st.caption(f":{KIND_COLOR[d.kind]}-badge[{d.kind}]{new}　{d.origin}{note}")
 
 
+def _failed_table(rows: list[dict]) -> None:
+    body = "".join(
+        f"<tr><td>{html.escape(r['group'])}</td><td>{html.escape(r['name'])}</td><td>{r['period']}</td>"
+        f"<td>{r['computed']:,}</td><td>{r['reported']:,}</td><td><b>{r['diff']:+,}</b></td><td>{r['tolerance']}</td></tr>"
+        for r in rows if r.get("computed") is not None and r.get("reported") is not None)
+    if body:
+        st.html('<div class="dd-cmp-wrap"><table class="dd-cmp"><thead><tr><th>区分</th><th>検算</th><th>期</th>'
+                '<th>計算値</th><th>報告値</th><th>差額</th><th>許容</th></tr></thead><tbody>' + body + "</tbody></table></div>")
+    else:
+        st.caption("不一致の明細は記録されていません（古い読み取り記録）。財務・4P突合マトリクスの読み取り結果をご覧ください")
+
+
 def _gate_report(run) -> None:
-    """投入資料の読み取りで検算ゲートが止まったもの（不一致の一覧）と、読み取りに失敗したもの。"""
+    """投入資料の検算ゲートの結果。軽微な差異は人が「差し替え」か「端数調整で続行」を選ぶ。重大な差異は止める。"""
     import json
 
+    ss = st.session_state
     d = run.path / "extracted"
     for f in sorted(d.glob("*.json")) if d.exists() else []:
         try:
@@ -103,22 +116,50 @@ def _gate_report(run) -> None:
             st.error(f"**{x.get('file')}** の読み取りに失敗しました。資料は保存済みです。\n\n{x['error'][:300]}",
                      icon=":material/error:")
             continue
-        if x.get("gate") != "停止":
-            continue
-        rows = x.get("failed_checks") or []
-        body = "".join(
-            f"<tr><td>{html.escape(r['group'])}</td><td>{html.escape(r['name'])}</td><td>{r['period']}</td>"
-            f"<td>{r['computed']:,}</td><td>{r['reported']:,}</td><td><b>{r['diff']:+,}</b></td><td>{r['tolerance']}</td></tr>"
-            for r in rows if r.get("computed") is not None and r.get("reported") is not None)
-        with st.container(border=True):
-            st.warning(f"**検算不一致レポート：{x.get('file')}**　この資料の数字は論争に使っていません。"
-                       "読み取り誤りか原資料の誤りかを確かめ、訂正した資料を投入してください。", icon=":material/rule:")
-            if body:
-                st.html('<div class="dd-cmp-wrap"><table class="dd-cmp"><thead><tr><th>区分</th><th>検算</th><th>期</th>'
-                        '<th>計算値</th><th>報告値</th><th>差額</th><th>許容</th></tr></thead><tbody>'
-                        + body + "</tbody></table></div>")
-            else:
-                st.caption("不一致の明細は記録されていません（古い読み取り記録）。財務・4P突合マトリクスの読み取り結果をご覧ください")
+        gate, m, name = x.get("gate"), x.get("materiality") or {}, x.get("file", "")
+        head = m.get("headline", "")
+        if gate == "軽微":
+            with st.container(border=True):
+                st.warning(f"**{name}**：軽微な計算差異（{head}）を検出しました。"
+                           "財務諸表を差し替えるか、端数調整で続行するかを選んでください。選ぶまで、この資料の数値は論争に使いません。",
+                           icon=":material/rule:")
+                _failed_table(x.get("failed_checks") or [])
+                c1, c2 = st.columns(2)
+                key = f.stem
+                if c1.button("財務諸表を修正して差し替える", key=f"gate_replace_{key}", width="stretch",
+                             disabled=run.frozen):
+                    ss.flash = mock_engine.choose_replace(run, name)
+                    st.rerun()
+                if c2.button("端数調整で自動調整して診断を続行する", key=f"gate_adjust_{key}", type="primary",
+                             width="stretch", disabled=run.frozen):
+                    from session import forget
+
+                    try:
+                        ss.flash = mock_engine.approve_rounding(run, name)
+                    except ValueError as e:
+                        ss.flash = str(e)
+                    forget(run)   # 採用した財務データで論争の文脈を読み直す
+                    st.rerun()
+                st.caption("端数調整：書類に書かれた合計を正として残し、内訳とのずれを「端数調整差額」として計上します"
+                           "（BS の資産側はその他流動資産、負債・純資産側はその他流動負債、PL は雑損益）。承認は監査証跡に記録します")
+        elif gate == "停止":
+            with st.container(border=True):
+                st.error(f"**{name}**：重大な計算不一致（{head}）のため、診断プロセスを停止しました。"
+                         "誤ったトリアージ判定を防ぐため、元資料の数値を訂正のうえ再投入してください。", icon=":material/block:")
+                if m.get("reasons"):
+                    st.caption("重大と判定した理由：" + "／".join(m["reasons"]))
+                _failed_table(x.get("failed_checks") or [])
+        elif gate == "差し替え待ち":
+            st.info(f"**{name}**：差し替えを選びました。訂正した財務諸表を投入してください（この資料は採用していません）。",
+                    icon=":material/sync:")
+    log = run.read("audit_log.json", [])
+    if log:
+        with st.expander(f"監査証跡（{len(log)}件）", icon=":material/fact_check:"):
+            for e in reversed(log):
+                st.markdown(f"- {e['at']}　{e['actor']}：{e['action']}（{e.get('file', '')}）"
+                            + (f"　{e['headline']}" if e.get("headline") else ""))
+                for line in e.get("entries", []):
+                    st.caption(f"　　{line}")
 
 
 def _ingest(run, session: DebateSession, frozen: bool) -> None:
@@ -156,8 +197,8 @@ def _ingest(run, session: DebateSession, frozen: bool) -> None:
                 st.rerun()
             st.caption("追加した資料は出典として引用できるようになります。担当者が読むのは本文のテキストです")
         else:
-            files = st.file_uploader("決算書・試算表・勘定科目内訳明細書など（PDF・Excel・画像）",
-                                     type=["pdf", "xlsx", "xls", "csv", "png", "jpg", "jpeg"],
+            files = st.file_uploader("決算書・試算表・勘定科目内訳明細書など（PDF・Excel・画像・テキスト）",
+                                     type=["pdf", "xlsx", "xls", "csv", "png", "jpg", "jpeg", "txt", "md"],
                                      accept_multiple_files=True, key=f"dock_f_{ss.dock_uploader}")
             latest_seq = run.meta.seq
             st.caption(":material/info: 財務書類は読み取り（Gemini）と検算ゲートにかけます。"

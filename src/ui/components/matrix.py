@@ -39,7 +39,7 @@ def _amt(fin: Financials, v: float) -> str:
 
 def _ratio_frame(fin: Financials, mode: str, benches: list[dict], adj=()) -> pd.DataFrame:
     rows = []
-    for i in ind.RATIOS:
+    for i in (r for r in ind.RATIOS if r.chart):
         v = ind.evaluate(fin, i, mode, adj)
         row = {"指標": i.label, "対象企業": None if v.cur is None else v.cur * 100}
         for b in benches:
@@ -240,6 +240,10 @@ def _render_recon(report: ReconciliationReport, fin: Financials, source_label: s
     k3.metric("未確認", report.count("未確認"))
     k4.metric("端数差", report.rounding_diffs,
               help="千円未満切捨ての表示で生じた1〜2千円のずれを、許容差の内として一致とみなした件数（期ごとに数える）")
+    if fin.rounding_adjustments:
+        total = sum(abs(a.amount) for a in fin.rounding_adjustments)
+        st.info(f"人が承認した端数調整差額で一致させた項目が{report.adjusted_count}件あります（合計{total:,}{fin.unit}）。"
+                "書類に書かれた合計を正とし、ずれは端数調整差額として計上しています", icon=":material/fact_check:")
     rule = "円単位のため許容差0" if fin.rounding == "yen" else "許容差＝内訳件数n千円（最低2千円）"
     st.caption(f"規則：{rule}。{fin.rounding_note}")
     st.caption(f"検算対象：{source_label}（core.guardrails.reconcile の実行結果）")
@@ -332,6 +336,11 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
         benches = [b for b in [benchmarks.get("industry")] + benchmarks.get("peers", []) if b][:2]
         if any(b.get("placeholder") for b in benches):
             st.warning(benches[0].get("note", "比較値は仮置きです"), icon=":material/construction:")
+        for b in benches:
+            if b.get("source"):
+                st.markdown(f":material/query_stats: **比較基準：{b['source']}**")
+                if b.get("verified") is False and b.get("verification_note"):
+                    st.caption(b["verification_note"])
         df = _ratio_frame(fin, mode, benches, adj)
         st.plotly_chart(_ratio_chart(df, benches), width="stretch", theme="streamlit")
         st.markdown("**グラフの基礎数値と典拠**")
@@ -351,7 +360,9 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
         _render_requests(requests)
 
 
-GATE_BADGE = {"通過": ("green", "検算ゲート通過"), "停止": ("red", "検算ゲートで停止"), "対象外": ("gray", "検算対象外（部分資料）")}
+GATE_BADGE = {"通過": ("green", "検算ゲート通過"), "通過（端数調整）": ("green", "検算ゲート通過（端数調整を承認）"),
+              "軽微": ("orange", "軽微な差異（人の判断待ち）"), "差し替え待ち": ("gray", "差し替え待ち（不採用）"),
+              "停止": ("red", "重大な差異で停止"), "対象外": ("gray", "検算対象外（部分資料）")}
 
 
 def render_extractions(run) -> None:

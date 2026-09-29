@@ -1,0 +1,13 @@
+{
+ "name": "中小企業・製造業平均",
+ "source": "中小企業実態基本調査（製造業統計）",
+ "publisher": "中小企業庁",
+ "survey": "中小企業実態基本調査（財務指標・製造業）",
+ "verified": false,
+ "verification_note": "数値は利用者（BKW研究所）提示の値。e-Stat 掲載の原典表との照合が済むまで、調査年・表番号は未記入",
+ "ratios": {
+  "op_margin": 0.032,
+  "equity_ratio": 0.415,
+  "current_ratio": 1.48
+ }
+}

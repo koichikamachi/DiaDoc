@@ -300,6 +300,7 @@ def _read_file(run: Run, saved_name: str, content: bytes, extractor):
             "不一致": outcome.reconciliation.count("不一致"), "未確認": outcome.reconciliation.count("未確認")},
         "financials": outcome.financials.model_dump(),
         "failed_checks": failed_checks(outcome),
+        "materiality": outcome.materiality,
     })
     return outcome, conflicts, None
 
@@ -338,6 +339,65 @@ def adopt_financials(run: Run, outcome) -> str:
         return "検算を通過したので、この回次の財務データに欠けている科目を補いました（既存の値は変えていません）。"
     run.write("inputs/financials.json", fin.model_dump())
     return "検算を通過したので、この回次の財務データとして採用しました。論争を始められます。"
+
+
+def approve_rounding(run: Run, file: str) -> str:
+    """軽微な差異の資料について、人の承認で端数調整差額を計上し、財務データとして採用する。監査証跡を残す。"""
+    from core.guardrails import reconcile
+    from core.materiality import adjustments, assess
+    from schema import Financials
+
+    run._guard()
+    rec_path = f"extracted/{Path(file).stem}.json"
+    x = run.read(rec_path)
+    if not x or x.get("gate") != "軽微":
+        raise ValueError("端数調整で続行できるのは、軽微な差異と判定された資料だけです")
+    fin = Financials.model_validate(x["financials"])
+    m = assess(fin, reconcile(fin))
+    if m is None or m.level != "軽微":
+        raise ValueError("軽微な差異ではなくなりました（再判定の結果）")
+    at = now_iso()
+    fin.rounding_adjustments = fin.rounding_adjustments + adjustments(m, at, file)
+    rec = reconcile(fin)
+    if not rec.passed:
+        raise ValueError("端数調整後も検算が一致しません")
+    own = (run.path / "inputs" / "financials.json").exists()
+    if own:
+        from tools.file_ingest import merge_missing
+
+        base = run.financials()
+        merged, _ = merge_missing(base, fin)
+        merged.rounding_adjustments = base.rounding_adjustments + fin.rounding_adjustments
+        run.write("inputs/financials.json", merged.model_dump())
+    else:
+        run.write("inputs/financials.json", fin.model_dump())
+    x["gate"] = "通過（端数調整）"
+    x["approved_at"] = at
+    x["financials"] = fin.model_dump()
+    run.write(rec_path, x)
+    lines = [f"{a.check}（{'当期' if a.period == 'cur' else '前期'}）{a.amount:+,} → {a.booked_to}" for a in fin.rounding_adjustments]
+    entry = {"at": at, "actor": "人間（ライム）", "action": "端数調整差額の計上を承認", "file": file,
+             "total_diff_thousand": m.total_diff_thousand, "headline": m.headline(), "entries": lines}
+    run.write("audit_log.json", run.read("audit_log.json", []) + [entry])
+    run.write("debate_log.json", run.read("debate_log.json", []) + [
+        _msg("human", "承認", f"ユーザー承認による端数調整差額（{m.total_diff_thousand:,.0f}千円）の計上：{file}"),
+        _msg("judge", "検算ゲート", f"端数調整差額を計上し、検算が全項目で一致しました（{m.headline()}）。"
+                                    "書類に書かれた合計を正として、この回次の財務データに採用します。", ruling="登録"),
+    ])
+    return f"端数調整差額（{m.total_diff_thousand:,.0f}千円）を計上して採用しました。監査証跡に記録しています。"
+
+
+def choose_replace(run: Run, file: str) -> str:
+    """軽微な差異の資料を採用せず、訂正した資料の差し替えを待つ。"""
+    rec_path = f"extracted/{Path(file).stem}.json"
+    x = run.read(rec_path)
+    if not x or x.get("gate") != "軽微":
+        return ""
+    x["gate"] = "差し替え待ち"
+    run.write(rec_path, x)
+    run.write("audit_log.json", run.read("audit_log.json", []) + [
+        {"at": now_iso(), "actor": "人間（ライム）", "action": "財務諸表の差し替えを選択（端数調整はしない）", "file": file}])
+    return "この資料は採用しません。訂正した財務諸表を投入してください。"
 
 
 def handle_upload(company: str, filename: str, content: bytes, extractor=None) -> tuple[Run, list[dict], bool]:
@@ -390,7 +450,7 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
     if error:
         body = f"読み取りに失敗しました（{error}）。資料は保存済みです。数値は未確認のまま扱います。"
     elif outcome.report.is_mock:
-        body = ("読み取りエンジン：モック（GEMINI_API_KEY 未設定）。ファイルの中身は読まず、制作サンプル（アルファ製菓 第73期）を返しています。"
+        body = ("読み取りエンジン：モック（GEMINI_API_KEY 未設定）。ファイルの中身は読まず、制作サンプル（C001 アルファ製菓・モデル企業 第73期）を返しています。"
                 + outcome.summary() + "。")
     else:
         body = f"読み取りエンジン：{outcome.report.extractor}。{outcome.summary()}。"
@@ -409,9 +469,15 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
     added = [_msg("human", "資料投入", f"追加資料を投入：{saved.name}"),
              _msg("radar", "資料受領", head + body, [{"file": saved.name, "page": None}])]
     if outcome is not None and outcome.gate == "停止":
+        head = (outcome.materiality or {}).get("headline", "")
         added.append(_msg("judge", "検算ゲート",
-                          "投入資料の数値が検算ゲートで一致しません。読み取り誤りの可能性があるため、この資料の数値は論争に使いません。"
-                          "原資料の確認をお願いします。", ruling="保留"))
+                          f"重大な計算不一致（{head}）のため、診断プロセスを停止しました。誤ったトリアージ判定を防ぐため、"
+                          "この資料の数値は論争に使いません。元資料の数値を訂正のうえ再投入してください。", ruling="保留"))
+    elif outcome is not None and outcome.gate == "軽微":
+        head = (outcome.materiality or {}).get("headline", "")
+        added.append(_msg("judge", "検算ゲート",
+                          f"軽微な計算差異（{head}）を検出しました。財務諸表を差し替えるか、端数調整で続行するかを"
+                          "人が選ぶまで、この資料の数値は論争に使いません。", ruling="保留"))
     elif touched:
         added += [_msg(w, "新事実", t, ruling=rl) for w, t, rl in FOLLOWUPS.get(doc_type, [])]
     else:

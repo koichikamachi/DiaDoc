@@ -185,6 +185,7 @@ def _request(action: str, nonce: int, can_pick: bool) -> None:
     pick = ss.get("next_pick", "auto")
     ss.dd_pending = {"action": action, "nonce": nonce, "speaker": pick if can_pick and pick != "auto" else None}
     ss.next_pick = "auto"
+    ss.intervene_to = None      # 介入の宛先も、発言が進んだら「自動（指定なし）」に戻す
 
 
 def _execute_pending(session: DebateSession) -> None:
@@ -287,18 +288,25 @@ def render(session: DebateSession, frozen: bool) -> None:
 
     # --- 人間の介入 --------------------------------------------------------
     nxt_name = PROFILES[nxt]["name"] if nxt else "—"
-    targets = {None: f"次の発言者に任せる（{nxt_name}）", "growth": "Prof. Growth に答えさせる",
+    # 選択肢の文字は固定にする（次の発言者の名前を埋め込むと、発言が進んだあとも古い名前が表示に残る）
+    targets = {None: "自動（指定なし）", "growth": "Prof. Growth に答えさせる",
                "rebuild": "Dr. Rebuild に答えさせる", "radar": "Analyst Radar に答えさせる"}
+    ss = st.session_state
+    if ss.pop("_reset_intervene_to", False) or ss.get("intervene_to") not in targets:
+        ss.intervene_to = None
     with st.form("intervene", clear_on_submit=True, border=False):
         text = st.text_area("人間介入（ライム）", placeholder="例：いきなり8%の削減は従業員の反発で難しいのでは？／遊休地の売却は地元の反対で難しい",
                             height=80, disabled=frozen, key="intervene_text")
         c1, c2 = st.columns([1.3, 1], vertical_alignment="bottom")
         to = c1.selectbox("誰に答えさせるか", list(targets), format_func=targets.get, key="intervene_to",
-                          disabled=frozen or finished)
+                          disabled=frozen or finished,
+                          help=f"「自動」なら、次の発言者（いまは {nxt_name}）がこの介入を読んで答えます")
         go = c2.checkbox("介入したらすぐ1手進める", value=True, key="intervene_go", disabled=frozen or finished)
         sent = st.form_submit_button("介入する", icon=":material/record_voice_over:", disabled=frozen)
-    st.caption("指名した担当者は順番を割り込んで答え、答えた後は元の順番に戻ります。指名しなければ次の発言者が答えます")
+    st.caption(f"指名した担当者は順番を割り込んで答え、答えた後は元の順番に戻ります。"
+               f"「自動」なら次の発言者（いまは {nxt_name}）が答えます")
     if sent:
+        ss["_reset_intervene_to"] = True
         try:
             intervene(session, text, addressee=to)
         except EmptyInterventionError:

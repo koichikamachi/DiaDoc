@@ -165,6 +165,8 @@ def _header(run: Run, company: dict, state) -> None:
         chips += f"　｜　:{ph['color']}-badge[{ph['icon']} {ph['label']}]"
     if company.get("fictional"):
         chips += "　:violet-badge[:material/theater_comedy: 架空モデル]"
+    elif company.get("anonymized"):
+        chips += "　:violet-badge[:material/masks: モデル企業]"
     st.markdown(chips)
 
 
@@ -223,6 +225,9 @@ def main() -> None:
     if company.get("fictional"):
         st.warning("**架空モデル**：実在の会社ではありません。資金ショート寸前の窮境企業として作った対比用のシナリオです。",
                    icon=":material/theater_comedy:")
+    elif company.get("anonymized"):
+        st.info("**モデル企業**：実在企業の公開資料をもとに、財務の構造を保ったまま全数値を一定の係数で変換したものです。"
+                "実在企業の決算書の数値そのものではありません。", icon=":material/masks:")
     if ss.get("flash"):
         st.toast(ss.flash, icon=":material/record_voice_over:")
         ss.flash = None

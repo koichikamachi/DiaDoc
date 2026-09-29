@@ -1,0 +1,1864 @@
+{
+ "company_id": "C001",
+ "fiscal_period": "第73期（2025年4月1日〜2026年3月31日）",
+ "basis": "単体",
+ "unit": "千円",
+ "rounding": "truncate_thousand",
+ "rounding_note": "原資料は千円未満切捨て表示。内訳n件の合計は報告合計と最大n千円程度ずれうる",
+ "documents": {
+  "有報第73期（モデル）": {
+   "title": "アルファ製菓株式会社 第73期 有価証券報告書（モデル。実在企業の公開資料から、数値を一定の係数で変換）"
+  }
+ },
+ "items": {
+  "cash": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "現金預金",
+   "source_label": "現金及び預金",
+   "prev": 3115370,
+   "cur": 1775593,
+   "mapping": "名称のみ相違",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "nr": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "受取手形",
+   "source_label": "受取手形",
+   "prev": 3358,
+   "cur": 1442,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "ar": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "売掛金",
+   "source_label": "売掛金",
+   "prev": 6052058,
+   "cur": 6043850,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "fg": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "製品・商品",
+   "source_label": "商品及び製品",
+   "prev": 544561,
+   "cur": 1080987,
+   "mapping": "他表から分割可",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": "製造原価明細書の売上原価調整表で期末製品704,817／期末商品344,684に分割可"
+  },
+  "wip": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "仕掛品",
+   "source_label": "仕掛品",
+   "prev": 159540,
+   "cur": 182953,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "rm": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "原材料",
+   "source_label": "原材料及び貯蔵品",
+   "prev": 1234522,
+   "cur": 1897578,
+   "mapping": "統合表示",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": "原材料と貯蔵品は分割不可"
+  },
+  "pp": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "前払費用",
+   "source_label": "前払費用",
+   "prev": 111225,
+   "cur": 118336,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "oca": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "その他流動資産",
+   "source_label": "その他",
+   "prev": 73665,
+   "cur": 212878,
+   "mapping": "統合表示",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": "未収入金・仮払金・未収消費税等が埋没（連結注記では未収消費税等が増加と説明）"
+  },
+  "ada1": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "貸倒引当金（流動）",
+   "source_label": "貸倒引当金",
+   "prev": -36961,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": "当期は「－」"
+  },
+  "tca": {
+   "statement": "BS",
+   "section": "流動資産",
+   "label": "流動資産合計",
+   "source_label": "流動資産合計",
+   "prev": 11257340,
+   "cur": 11313622,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "bld": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "建物",
+   "source_label": "建物",
+   "prev": 7341480,
+   "cur": 7861541,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": "純額（減価償却累計額控除後）表示"
+  },
+  "str": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "構築物",
+   "source_label": "構築物",
+   "prev": 466347,
+   "cur": 480485,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "mac": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "機械装置",
+   "source_label": "機械及び装置",
+   "prev": 5609616,
+   "cur": 6289858,
+   "mapping": "名称のみ相違",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "veh": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "車両運搬具",
+   "source_label": "車両運搬具",
+   "prev": 13380,
+   "cur": 24011,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "tool": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "工具器具備品",
+   "source_label": "工具、器具及び備品",
+   "prev": 142891,
+   "cur": 185104,
+   "mapping": "名称のみ相違",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "land": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "土地",
+   "source_label": "土地",
+   "prev": 824922,
+   "cur": 967832,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "lease": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "リース資産",
+   "source_label": "リース資産",
+   "prev": 59453,
+   "cur": 64659,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "cip": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "建設仮勘定",
+   "source_label": "建設仮勘定",
+   "prev": 817424,
+   "cur": 247992,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "tppe": {
+   "statement": "BS",
+   "section": "有形固定資産",
+   "label": "有形固定資産合計",
+   "source_label": "有形固定資産合計",
+   "prev": 15275516,
+   "cur": 16121486,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "sw": {
+   "statement": "BS",
+   "section": "無形固定資産",
+   "label": "ソフトウェア",
+   "source_label": "ソフトウエア",
+   "prev": 46581,
+   "cur": 29099,
+   "mapping": "名称のみ相違",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "oint": {
+   "statement": "BS",
+   "section": "無形固定資産",
+   "label": "その他無形",
+   "source_label": "その他",
+   "prev": 10841,
+   "cur": 22148,
+   "mapping": "統合表示",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "tint": {
+   "statement": "BS",
+   "section": "無形固定資産",
+   "label": "無形固定資産合計",
+   "source_label": "無形固定資産合計",
+   "prev": 57423,
+   "cur": 51248,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "inv": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "投資有価証券",
+   "source_label": "投資有価証券",
+   "prev": 65507110,
+   "cur": 66405773,
+   "mapping": "上場企業特有",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": "時価評価。うち大半が旺旺集団株式（貸借対照表計上額57,219,612：p.58）"
+  },
+  "aff": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "関係会社株式",
+   "source_label": "関係会社株式",
+   "prev": 183623,
+   "cur": 183623,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "cap": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "出資金",
+   "source_label": "出資金",
+   "prev": 1233,
+   "cur": 1233,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "ltl": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "長期貸付金",
+   "source_label": "従業員に対する長期貸付金",
+   "prev": 2903,
+   "cur": 2091,
+   "mapping": "名称のみ相違",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": "役員・代表者への貸付は該当なし"
+  },
+  "ltpp": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "長期前払費用",
+   "source_label": "長期前払費用",
+   "prev": 42401,
+   "cur": 28939,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "dep": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "差入保証金",
+   "source_label": "差入保証金",
+   "prev": 75626,
+   "cur": 57054,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "oinv": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "その他投資",
+   "source_label": "その他",
+   "prev": 150078,
+   "cur": 198610,
+   "mapping": "統合表示",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": "保険積立金・ゴルフ会員権等が埋没の可能性"
+  },
+  "ada2": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "貸倒引当金（固定）",
+   "source_label": "貸倒引当金",
+   "prev": -33661,
+   "cur": -73209,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "tinv": {
+   "statement": "BS",
+   "section": "投資その他",
+   "label": "投資その他の資産合計",
+   "source_label": "投資その他の資産合計",
+   "prev": 65929314,
+   "cur": 66804115,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "tfa": {
+   "statement": "BS",
+   "section": "固定資産",
+   "label": "固定資産合計",
+   "source_label": "固定資産合計",
+   "prev": 81262253,
+   "cur": 82976849,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "ta": {
+   "statement": "BS",
+   "section": "資産",
+   "label": "資産合計",
+   "source_label": "資産合計",
+   "prev": 92519592,
+   "cur": 94290472,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "91"
+   },
+   "note": ""
+  },
+  "ap": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "買掛金",
+   "source_label": "買掛金",
+   "prev": 1183426,
+   "cur": 1409473,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "cltd": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "1年内返済長期借入金",
+   "source_label": "１年内返済予定の長期借入金",
+   "prev": 412824,
+   "cur": 4532,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "cbond": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "1年内償還社債",
+   "source_label": "１年内償還予定の社債",
+   "prev": 0,
+   "cur": 103000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": "中小企業の私募債と同型"
+  },
+  "cls": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "リース債務（流動）",
+   "source_label": "リース債務",
+   "prev": 18277,
+   "cur": 21487,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "oap": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "未払金",
+   "source_label": "未払金",
+   "prev": 1093664,
+   "cur": 878773,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "acc": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "未払費用",
+   "source_label": "未払費用",
+   "prev": 592292,
+   "cur": 572793,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "refund": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "返金負債",
+   "source_label": "返金負債",
+   "prev": 722155,
+   "cur": 672453,
+   "mapping": "上場企業特有",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": "リベート等の見積り。中小企業では未払金・売上値引等で処理されることが多い"
+  },
+  "tax": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "未払法人税等",
+   "source_label": "未払法人税等",
+   "prev": 138907,
+   "cur": 432471,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "ctax": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "未払消費税",
+   "source_label": "未払消費税等",
+   "prev": 54905,
+   "cur": 0,
+   "mapping": "名称のみ相違",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "wh": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "預り金",
+   "source_label": "預り金",
+   "prev": 24736,
+   "cur": 27816,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "dr": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "前受収益",
+   "source_label": "前受収益",
+   "prev": 300,
+   "cur": 345,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "bonus": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "賞与引当金",
+   "source_label": "賞与引当金",
+   "prev": 523839,
+   "cur": 547559,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "ocl": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "その他流動負債",
+   "source_label": "その他",
+   "prev": 3580,
+   "cur": 3301,
+   "mapping": "統合表示",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "tcl": {
+   "statement": "BS",
+   "section": "流動負債",
+   "label": "流動負債合計",
+   "source_label": "流動負債合計",
+   "prev": 4768912,
+   "cur": 4674008,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "bond": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "社債",
+   "source_label": "社債",
+   "prev": 206000,
+   "cur": 103000,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "ltd": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "長期借入金",
+   "source_label": "長期借入金",
+   "prev": 4532,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "ltdep": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "長期預り保証金",
+   "source_label": "長期預り保証金",
+   "prev": 105187,
+   "cur": 98431,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "lls": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "リース債務（固定）",
+   "source_label": "リース債務",
+   "prev": 50234,
+   "cur": 51853,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "ret": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "退職給付引当金",
+   "source_label": "退職給付引当金",
+   "prev": 1277133,
+   "cur": 1306696,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "sbp": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "役員株式給付引当金",
+   "source_label": "役員株式給付引当金",
+   "prev": 51909,
+   "cur": 67052,
+   "mapping": "上場企業特有",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "dtl": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "繰延税金負債",
+   "source_label": "繰延税金負債",
+   "prev": 17086924,
+   "cur": 17322399,
+   "mapping": "上場企業特有",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": "大半は株式含み益に係るもの。中小企業は税効果会計を通常適用しない"
+  },
+  "oltl": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "その他固定負債",
+   "source_label": "その他",
+   "prev": 98517,
+   "cur": 113170,
+   "mapping": "統合表示",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "tltl": {
+   "statement": "BS",
+   "section": "固定負債",
+   "label": "固定負債合計",
+   "source_label": "固定負債合計",
+   "prev": 18880439,
+   "cur": 19062604,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "tl": {
+   "statement": "BS",
+   "section": "負債",
+   "label": "負債合計",
+   "source_label": "負債合計",
+   "prev": 23649351,
+   "cur": 23736614,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "cs": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "資本金",
+   "source_label": "資本金",
+   "prev": 1683793,
+   "cur": 1683793,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "csr": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "資本準備金",
+   "source_label": "資本準備金",
+   "prev": 1915028,
+   "cur": 1915028,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "lr": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "利益準備金",
+   "source_label": "利益準備金",
+   "prev": 104480,
+   "cur": 104480,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "gr": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "別途積立金",
+   "source_label": "別途積立金",
+   "prev": 22847460,
+   "cur": 25370960,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "re": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "繰越利益剰余金",
+   "source_label": "繰越利益剰余金",
+   "prev": 2853922,
+   "cur": 1876911,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "tre": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "利益剰余金合計",
+   "source_label": "利益剰余金合計",
+   "prev": 25805863,
+   "cur": 27352351,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "ts": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "自己株式",
+   "source_label": "自己株式",
+   "prev": -3232515,
+   "cur": -3677072,
+   "mapping": "上場企業特有",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "tsh": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "株主資本合計",
+   "source_label": "株主資本合計",
+   "prev": 26172168,
+   "cur": 27274099,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "oci": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "評価差額金",
+   "source_label": "その他有価証券評価差額金",
+   "prev": 42698072,
+   "cur": 43279758,
+   "mapping": "上場企業特有",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": "時価評価を原資料どおり保持（方針）"
+  },
+  "tna": {
+   "statement": "BS",
+   "section": "純資産",
+   "label": "純資産合計",
+   "source_label": "純資産合計",
+   "prev": 68870241,
+   "cur": 70553858,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "tle": {
+   "statement": "BS",
+   "section": "負債純資産",
+   "label": "負債純資産合計",
+   "source_label": "負債純資産合計",
+   "prev": 92519592,
+   "cur": 94290472,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "92"
+   },
+   "note": ""
+  },
+  "sales": {
+   "statement": "PL",
+   "section": "売上",
+   "label": "売上高",
+   "source_label": "売上高",
+   "prev": 24298452,
+   "cur": 28148648,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "cogs": {
+   "statement": "PL",
+   "section": "売上原価",
+   "label": "売上原価",
+   "source_label": "売上原価",
+   "prev": 18449243,
+   "cur": 22045670,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": "内訳は製造原価明細書の調整表"
+  },
+  "gp": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "売上総利益",
+   "source_label": "売上総利益",
+   "prev": 5849209,
+   "cur": 6102978,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sell": {
+   "statement": "PL",
+   "section": "販管費",
+   "label": "販売費",
+   "source_label": "販売費",
+   "prev": 3681885,
+   "cur": 3811305,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": "細目は注記（p.98以降）で要確認"
+  },
+  "adm": {
+   "statement": "PL",
+   "section": "販管費",
+   "label": "一般管理費",
+   "source_label": "一般管理費",
+   "prev": 1520867,
+   "cur": 1643033,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sga": {
+   "statement": "PL",
+   "section": "販管費",
+   "label": "販管費合計",
+   "source_label": "販売費及び一般管理費合計",
+   "prev": 5202754,
+   "cur": 5454338,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "op": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "営業利益",
+   "source_label": "営業利益",
+   "prev": 646455,
+   "cur": 648638,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "ii": {
+   "statement": "PL",
+   "section": "営業外収益",
+   "label": "受取利息",
+   "source_label": "受取利息",
+   "prev": 1815,
+   "cur": 3164,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "div": {
+   "statement": "PL",
+   "section": "営業外収益",
+   "label": "受取配当金",
+   "source_label": "受取配当金",
+   "prev": 2954604,
+   "cur": 1908653,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": "大半が旺旺集団からの配当（連結ベースで当期1,789百万円：p.24）"
+  },
+  "ooi": {
+   "statement": "PL",
+   "section": "営業外収益",
+   "label": "雑収入",
+   "source_label": "その他",
+   "prev": 311259,
+   "cur": 145589,
+   "mapping": "名称のみ相違",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "tnoi": {
+   "statement": "PL",
+   "section": "営業外収益",
+   "label": "営業外収益合計",
+   "source_label": "営業外収益合計",
+   "prev": 3267679,
+   "cur": 2057407,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "ie": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "支払利息",
+   "source_label": "支払利息",
+   "prev": 5851,
+   "cur": 3353,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "bde": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "貸倒引当金繰入額",
+   "source_label": "貸倒引当金繰入額",
+   "prev": 0,
+   "cur": 2586,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "idle": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "休止固定資産減価償却費",
+   "source_label": "休止固定資産減価償却費",
+   "prev": 4935,
+   "cur": 9716,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": "標準科目に追加候補"
+  },
+  "ooe": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "雑損失",
+   "source_label": "その他",
+   "prev": 1805,
+   "cur": 2026,
+   "mapping": "名称のみ相違",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "tnoe": {
+   "statement": "PL",
+   "section": "営業外費用",
+   "label": "営業外費用合計",
+   "source_label": "営業外費用合計",
+   "prev": 12592,
+   "cur": 17682,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "ord": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "経常利益",
+   "source_label": "経常利益",
+   "prev": 3901542,
+   "cur": 2688365,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sg1": {
+   "statement": "PL",
+   "section": "特別利益",
+   "label": "固定資産売却益",
+   "source_label": "固定資産売却益",
+   "prev": 226,
+   "cur": 627,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sg2": {
+   "statement": "PL",
+   "section": "特別利益",
+   "label": "投資有価証券売却益",
+   "source_label": "投資有価証券売却益",
+   "prev": 0,
+   "cur": 51260,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "tsg": {
+   "statement": "PL",
+   "section": "特別利益",
+   "label": "特別利益合計",
+   "source_label": "特別利益合計",
+   "prev": 226,
+   "cur": 51888,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sl1": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "固定資産除却損",
+   "source_label": "固定資産除却損",
+   "prev": 7707,
+   "cur": 28865,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sl2": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "固定資産売却損",
+   "source_label": "固定資産売却損",
+   "prev": 0,
+   "cur": 5886,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sl3": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "投資有価証券評価損",
+   "source_label": "投資有価証券評価損",
+   "prev": 9305,
+   "cur": 1957,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sl4": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "リース解約損",
+   "source_label": "リース解約損",
+   "prev": 756,
+   "cur": 1408,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "sl5": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "解決金",
+   "source_label": "解決金",
+   "prev": 13870,
+   "cur": 0,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "tsl": {
+   "statement": "PL",
+   "section": "特別損失",
+   "label": "特別損失合計",
+   "source_label": "特別損失合計",
+   "prev": 31641,
+   "cur": 38118,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "pbt": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "税引前当期純利益",
+   "source_label": "税引前当期純利益",
+   "prev": 3870127,
+   "cur": 2702134,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "ctx": {
+   "statement": "PL",
+   "section": "税金",
+   "label": "法人税、住民税及び事業税",
+   "source_label": "法人税、住民税及び事業税",
+   "prev": 825556,
+   "cur": 848674,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "dtx": {
+   "statement": "PL",
+   "section": "税金",
+   "label": "法人税等調整額",
+   "source_label": "法人税等調整額",
+   "prev": 194429,
+   "cur": -15783,
+   "mapping": "上場企業特有",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": "税効果会計"
+  },
+  "ttx": {
+   "statement": "PL",
+   "section": "税金",
+   "label": "法人税等合計",
+   "source_label": "法人税等合計",
+   "prev": 1019985,
+   "cur": 832890,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "ni": {
+   "statement": "PL",
+   "section": "利益",
+   "label": "当期純利益",
+   "source_label": "当期純利益",
+   "prev": 2850142,
+   "cur": 1869244,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "93"
+   },
+   "note": ""
+  },
+  "mat": {
+   "statement": "製造原価",
+   "section": "製造費用",
+   "label": "材料費",
+   "source_label": "材料費",
+   "prev": 9855888,
+   "cur": 10453980,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": "原料米・副材料・包装資材の内訳は不明"
+  },
+  "lab": {
+   "statement": "製造原価",
+   "section": "製造費用",
+   "label": "労務費",
+   "source_label": "労務費",
+   "prev": 4020297,
+   "cur": 4156690,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "exp": {
+   "statement": "製造原価",
+   "section": "製造費用",
+   "label": "経費",
+   "source_label": "経費",
+   "prev": 4612555,
+   "cur": 4811477,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "e_dep": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "減価償却費（製造）",
+   "source_label": "減価償却費",
+   "prev": 1514310,
+   "cur": 1611392,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": "主な内訳のみ開示"
+  },
+  "e_fuel": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "燃料費",
+   "source_label": "燃料費",
+   "prev": 833559,
+   "cur": 815492,
+   "mapping": "他表から分割可",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": "標準科目『電力燃料費』を電力・燃料に分割"
+  },
+  "e_pow": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "電力費",
+   "source_label": "電力費",
+   "prev": 656372,
+   "cur": 583899,
+   "mapping": "他表から分割可",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "e_sup": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "消耗器具備品費",
+   "source_label": "消耗器具備品費",
+   "prev": 497434,
+   "cur": 532217,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "e_rep": {
+   "statement": "製造原価",
+   "section": "経費内訳",
+   "label": "修繕費（製造）",
+   "source_label": "修繕費",
+   "prev": 270580,
+   "cur": 331187,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "tmc": {
+   "statement": "製造原価",
+   "section": "製造費用",
+   "label": "当期総製造費用",
+   "source_label": "当期総製造費用",
+   "prev": 18488742,
+   "cur": 19422149,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "bwip": {
+   "statement": "製造原価",
+   "section": "仕掛品",
+   "label": "期首仕掛品",
+   "source_label": "期首仕掛品棚卸高",
+   "prev": 135475,
+   "cur": 159540,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "ewip": {
+   "statement": "製造原価",
+   "section": "仕掛品",
+   "label": "期末仕掛品",
+   "source_label": "期末仕掛品棚卸高",
+   "prev": 159540,
+   "cur": 182953,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "cgm": {
+   "statement": "製造原価",
+   "section": "製品",
+   "label": "当期製品製造原価",
+   "source_label": "当期製品製造原価",
+   "prev": 18464677,
+   "cur": 19398736,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "bfg": {
+   "statement": "売上原価調整",
+   "section": "製品",
+   "label": "期首製品",
+   "source_label": "期首製品棚卸高",
+   "prev": 588021,
+   "cur": 544561,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "pur": {
+   "statement": "売上原価調整",
+   "section": "商品",
+   "label": "当期商品仕入高",
+   "source_label": "当期商品仕入高",
+   "prev": 27233,
+   "cur": 3244748,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": "標準科目に追加。前期比で急増（関連会社経由の輸入商品）"
+  },
+  "trf": {
+   "statement": "売上原価調整",
+   "section": "振替",
+   "label": "他勘定振替高",
+   "source_label": "他勘定振替高",
+   "prev": 86128,
+   "cur": 61389,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": "見本品費等を販管費へ振替"
+  },
+  "efg": {
+   "statement": "売上原価調整",
+   "section": "製品",
+   "label": "期末製品",
+   "source_label": "期末製品棚卸高",
+   "prev": 544561,
+   "cur": 725962,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "emd": {
+   "statement": "売上原価調整",
+   "section": "商品",
+   "label": "期末商品",
+   "source_label": "期末商品棚卸高",
+   "prev": 0,
+   "cur": 355025,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "94"
+   },
+   "note": ""
+  },
+  "dvd": {
+   "statement": "株主資本等変動",
+   "section": "繰越利益剰余金",
+   "label": "剰余金の配当",
+   "source_label": "剰余金の配当",
+   "prev": 247447,
+   "cur": 322755,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "96"
+   },
+   "note": ""
+  },
+  "grt": {
+   "statement": "株主資本等変動",
+   "section": "繰越利益剰余金",
+   "label": "別途積立金の積立",
+   "source_label": "別途積立金の積立",
+   "prev": 1689200,
+   "cur": 2523500,
+   "mapping": "対応",
+   "is_total": false,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "96"
+   },
+   "note": ""
+  },
+  "k_sales": {
+   "statement": "主要経営指標",
+   "section": "照合",
+   "label": "売上高（指標欄）",
+   "source_label": "提出会社の経営指標等 売上高",
+   "prev": 24298452,
+   "cur": 28148648,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "k_ni": {
+   "statement": "主要経営指標",
+   "section": "照合",
+   "label": "当期純利益（指標欄）",
+   "source_label": "提出会社の経営指標等 当期純利益",
+   "prev": 2850142,
+   "cur": 1869244,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "k_na": {
+   "statement": "主要経営指標",
+   "section": "照合",
+   "label": "純資産（指標欄）",
+   "source_label": "提出会社の経営指標等 純資産額",
+   "prev": 68870241,
+   "cur": 70553858,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "2"
+   },
+   "note": ""
+  },
+  "k_ta": {
+   "statement": "主要経営指標",
+   "section": "照合",
+   "label": "総資産（指標欄）",
+   "source_label": "提出会社の経営指標等 総資産額",
+   "prev": 92519592,
+   "cur": 94290472,
+   "mapping": "合計（検算用）",
+   "is_total": true,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "2"
+   },
+   "note": ""
+  }
+ },
+ "supplementary": {
+  "dtl_on_unrealized_gain": {
+   "label": "その他有価証券評価差額金に係る繰延税金負債（税効果注記）",
+   "cur": 18009949,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "84"
+   },
+   "note": "連結と単体で同額"
+  },
+  "dta_netted": {
+   "label": "繰延税金負債と相殺した繰延税金資産（単体）",
+   "cur": 687550,
+   "source": {
+    "file": "有報第73期（モデル）",
+    "page": "98"
+   }
+  }
+ }
+}

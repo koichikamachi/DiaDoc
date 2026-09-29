@@ -1,6 +1,6 @@
 """検算ゲートと形式審査のテスト（決定論的部分、LLM不使用）。
 
-制作サンプル：アルファ製菓 第73期 単体（data/companies/C001_sample_alpha/runs/run_001_initial）
+制作サンプル：C001 アルファ製菓（モデル企業） 第73期 単体（data/companies/C001_sample_alpha/runs/run_001_initial）
 """
 
 from __future__ import annotations
@@ -53,10 +53,10 @@ def test_sample_reconciles_all_items(fin):
 
 def test_sample_rounding_differences_are_within_component_count(fin):
     report = reconcile(fin)
-    assert report.rounding_diffs == 34
+    assert report.rounding_diffs == 36
     current_liabilities = next(c for c in report.checks if c.name == "流動負債合計")
     prev = next(p for p in current_liabilities.periods if p.period == "prev")
-    assert prev.diff == -6 and prev.tolerance == 13  # 13件の内訳で6千円のずれ → 許容内
+    assert prev.diff == -7 and prev.tolerance == 13  # 13件の内訳で7千円のずれ → 許容内
 
 
 def test_fixed_two_thousand_rule_would_have_wrongly_stopped(fin):
@@ -108,7 +108,7 @@ def test_yen_documents_allow_no_rounding_difference(fin):
 # ---------------------------------------------------------------------------
 # 形式審査
 # ---------------------------------------------------------------------------
-SRC = SourceRef(file="有報第73期", page="94")
+SRC = SourceRef(file="有報第73期（モデル）", page="94")
 
 
 def test_review_rejects_claim_without_source():
@@ -117,7 +117,7 @@ def test_review_rejects_claim_without_source():
 
 
 def test_review_rejects_source_without_page():
-    r = review_claim(Claim(speaker="growth", text="…", sources=[SourceRef(file="有報第73期")], settle_condition="…の比較"))
+    r = review_claim(Claim(speaker="growth", text="…", sources=[SourceRef(file="有報第73期（モデル）")], settle_condition="…の比較"))
     assert r.verdict == "退け"
     assert "頁" in r.reasons[0]
 
@@ -147,8 +147,8 @@ def test_review_ignores_incomplete_sources_when_a_valid_one_exists():
 
 
 @pytest.mark.parametrize(("text", "file", "page"), [
-    ("有報第73期 p.93", "有報第73期", "93"),
-    ("有報第73期 p.91–92", "有報第73期", "91–92"),
+    ("有報第73期（モデル） p.93", "有報第73期（モデル）", "93"),
+    ("有報第73期（モデル） p.91–92", "有報第73期（モデル）", "91–92"),
     ("勘定科目内訳明細書 3頁", "勘定科目内訳明細書", "3"),
     ("市況メモ", "市況メモ", None),
 ])

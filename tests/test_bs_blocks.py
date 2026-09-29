@@ -81,8 +81,8 @@ def test_hatched_caps_nominal_removes_real_adds(crisis):
 
 def test_disclosed_gain_is_automatic_for_listed_company(alpha):
     auto = metrics.disclosed_adjustments(alpha)
-    assert {a.origin for a in auto} == {"開示"} and auto[0].amount == -59_504_570
-    assert metrics.balance_sheet(alpha, "real")["純資産"] == 26_479_709
+    assert {a.origin for a in auto} == {"開示"} and auto[0].amount == -61_289_707
+    assert metrics.balance_sheet(alpha, "real")["純資産"] == 27_274_100
     nom_caps = {b.label for b in metrics.bs_blocks(alpha, "nominal") if b.adjust}
     assert "投資有価証券（時価評価の含み益）" in nom_caps and "繰延税金負債" in nom_caps
 
@@ -128,4 +128,4 @@ def test_caption_and_chart(alpha, crisis):
     assert {x for t in _bs_chart(crisis).data for x in t.x[0]} == {"帳簿＝実質（調整なし）"}
     assert {x for t in _bs_chart(crisis, [GAIN]).data for x in t.x[0]} == {"名目（帳簿）", "実質（調整後）"}
     assert "純資産は44.7百万円から52.7百万円" in _bs_caption(crisis, [GAIN, GAIN.model_copy(update={"id": "A9", "amount": 5_000})])
-    assert "915.4億円は、調整を加えると327.1億円" in _bs_caption(alpha)
+    assert "942.9億円は、調整を加えると336.9億円" in _bs_caption(alpha)

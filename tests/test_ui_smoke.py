@@ -125,6 +125,13 @@ def test_crisis_model_renders_as_fictional(data):
     assert any("架空モデル" in w.value for w in at.warning)
 
 
+def test_sample_company_is_shown_as_a_model_company(data):
+    at = _run()
+    assert not at.exception, at.exception
+    assert any("アルファ製菓（東証スタンダード上場・米菓製造モデル）" in m.value for m in at.markdown)
+    assert any("モデル企業" in i.value and "係数" in i.value for i in at.info)
+
+
 def test_qualitative_material_is_added_to_the_current_run(data):
     from core.graph import DebateSession
     from core.runs import latest_run
@@ -163,6 +170,21 @@ def test_intervention_addressed_to_growth_jumps_the_queue(data):
     st_ = DebateSession(latest_run(COMPANY)).state()
     assert [m.speaker for m in st_.messages] == ["radar", "human", "growth"]
     assert st_.messages[1].addressee == "growth"
+
+
+def test_addressee_resets_to_auto_after_each_turn(data):
+    at = _run()
+    sel = at.selectbox(key="intervene_to")
+    assert sel.value is None and sel.format_func(None) == "自動（指定なし）"
+    at.selectbox(key="intervene_to").set_value("rebuild")
+    _btn(at, "▶ 1手進める").click().run()                    # 介入せずに1手進めても、宛先は自動に戻る
+    assert not at.exception, at.exception
+    assert at.selectbox(key="intervene_to").value is None
+    at.text_area(key="intervene_text").input("遊休地の売却は地元の反対で難しい")
+    at.selectbox(key="intervene_to").set_value("growth")
+    at.button(key="FormSubmitter:intervene-介入する").click().run()
+    assert not at.exception, at.exception
+    assert at.selectbox(key="intervene_to").value is None          # 介入して答えが出たあとも自動に戻る
 
 
 def test_mission_is_shown_and_can_be_changed(data):
@@ -235,13 +257,46 @@ def test_mismatch_report_is_shown_without_crashing(data):
     at = _run()
     at.selectbox(key="company").set_value(company).run()
     assert not at.exception, at.exception
-    assert any("検算不一致レポート" in w.value for w in at.warning)
+    assert any("重大な計算不一致" in e.value and "診断プロセスを停止" in e.value for e in at.error)
     assert "資産合計" in _texts(at)
+
+
+def test_minor_difference_offers_two_choices_and_adjusts(data):
+    from core.mock_engine import handle_upload
+    from core.runs import create_company, latest_run
+    from tools.file_ingest import MockExtractor
+
+    class Slight(MockExtractor):
+        name = "gemini:fake"
+
+        def __init__(self):
+            super().__init__(ROOT / "data/companies/C002_sample_crisis/runs/run_001_initial/inputs/financials.json")
+
+        def extract(self, filename, content):
+            ex = super().extract(filename, content)
+            for it in ex.items:
+                if it.key == "oca":
+                    it.cur += 300
+            return ex
+
+    company = create_company("端数精工")
+    handle_upload(company, "決算報告書.pdf", b"%PDF", extractor=Slight())
+    at = _run()
+    at.selectbox(key="company").set_value(company).run()
+    assert not at.exception, at.exception
+    assert any("軽微な計算差異（差額: 300千円" in w.value for w in at.warning)
+    labels = [b.label for b in at.button]
+    assert "財務諸表を修正して差し替える" in labels and "端数調整で自動調整して診断を続行する" in labels
+    next(b for b in at.button if b.label == "端数調整で自動調整して診断を続行する").click().run()
+    assert not at.exception, at.exception
+    assert latest_run(company).financials() is not None
+    assert "端数調整差額の計上を承認" in _texts(at)                  # 監査証跡に出る
+    assert any("人が承認した端数調整差額" in i.value for i in at.info)   # 検算の欄にも明示される
 
 
 def test_document_preview_opens_in_a_dialog(data):
     at = _run()
-    doc_btn = next(b for b in at.button if b.label == "有報第73期")
+    doc_btn = next(b for b in at.button if b.label == "有報第73期（モデル）")
     doc_btn.click().run()
     assert not at.exception, at.exception
     assert any("原本はシステムに保存していません" in c.value for c in at.caption)
@@ -306,3 +361,10 @@ def test_matrix_shows_basis_table_and_plain_recon_wording(data):
     at.selectbox(key="company").set_value("C002_sample_crisis").run()
     labels = [m.label for m in at.metric]
     assert "経常利益に占める受取配当金" not in labels and not at.exception
+
+
+def test_benchmark_is_labelled_with_the_official_survey(data):
+    at = _run()
+    assert not at.exception, at.exception
+    assert any("比較基準：中小企業実態基本調査（製造業統計）" in m.value for m in at.markdown)
+    assert not any("仮置き" in w.value for w in at.warning)

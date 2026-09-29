@@ -74,7 +74,7 @@ def test_first_financial_statements_go_into_the_empty_first_run(data):
 def test_mock_reading_is_never_adopted_as_the_companys_data(data):
     company = create_company("サンプル精工")
     run, _, _ = handle_upload(company, "決算報告書.pdf", b"%PDF", extractor=MockExtractor())
-    assert run.run_id == "run_001_initial" and run.financials() is None   # アルファのサンプルを別会社のデータにしない
+    assert run.run_id == "run_001_initial" and run.financials() is None   # C001 のサンプルを別会社のデータにしない
 
 
 def test_mismatch_is_reported_and_not_adopted(data):
@@ -87,7 +87,7 @@ def test_mismatch_is_reported_and_not_adopted(data):
     assert ("資産合計", "当期") in names
     row = next(r for r in rec["failed_checks"] if r["name"] == "資産合計")
     assert row["diff"] == -1000                                   # 計算値−報告値
-    assert any("検算ゲートで一致しません" in m["text"] for m in added)
+    assert any("重大な計算不一致" in m["text"] and "再投入" in m["text"] for m in added)   # 1,000千円＝100万円以上は重大
 
 
 def test_second_upload_into_the_first_run_after_data_exists_opens_the_next_run(data):
@@ -155,12 +155,13 @@ def test_document_items_lists_the_statements_with_pages(data):
     assert document_items(fin, "存在しない資料") == []
 
 
-def test_documents_carry_paths_and_urls(data):
+def test_documents_carry_paths_but_model_company_has_no_public_link(data):
     from core.digest import documents
 
     s = DebateSession(latest_run("C001_sample_alpha"))
     docs = {d.name: d for d in documents(s.run, s.ctx)}
-    assert docs["有報第73期"].url.startswith("https://") and docs["有報第73期"].path is None
+    doc = docs["有報第73期（モデル）"]
+    assert doc.url is None and doc.path is None                        # モデル企業は実在の公開資料へつながない
     xl = next(d for d in docs.values() if d.kind == "検算表")
     assert xl.path.exists()
 
@@ -197,7 +198,7 @@ def test_adoption_requires_a_closed_debate(data):
 
 @pytest.mark.parametrize("name,kind", [
     ("決算報告書.pdf", "財務諸表（決算報告書）"), ("決算書_2026.xlsx", "財務諸表（決算報告書）"),
-    ("73_securities-report.pdf", "財務諸表（決算報告書）"), ("有報第73期.pdf", "財務諸表（決算報告書）"),
+    ("73_securities-report.pdf", "財務諸表（決算報告書）"), ("有報第73期（モデル）.pdf", "財務諸表（決算報告書）"),
     ("FS_FY2025.pdf", "財務諸表（決算報告書）"), ("販管費内訳.pdf", "販管費内訳"),
     ("勘定科目内訳明細書.pdf", "勘定科目内訳明細書"), ("品目別損益.xlsx", "品目別損益"),
 ])
