@@ -128,7 +128,7 @@ def test_crisis_model_renders_as_fictional(data):
 def test_sample_company_is_shown_as_a_model_company(data):
     at = _run()
     assert not at.exception, at.exception
-    assert any("アルファ製菓（東証スタンダード上場・米菓製造モデル）" in m.value for m in at.markdown)
+    assert any("アルファ製菓（東証スタンダード上場・加工食品製造モデル）" in m.value for m in at.markdown)
     assert any("モデル企業" in i.value and "係数" in i.value for i in at.info)
 
 
