@@ -34,11 +34,16 @@ def _preview(entry_name: str, run, fin) -> None:
         st.warning("資料が見つかりません")
         return
     st.markdown(f"**{entry.name}**　:gray[{entry.kind}・{entry.origin}]")
-    if entry.kind == "財務" and entry.path is None:
-        rows = digest.document_items(fin, entry.name)
+    rows = digest.document_items(fin, entry.name) if entry.kind == "財務" else []
+    if entry.kind == "財務" and (entry.path is None or rows):
         if entry.url:
             st.link_button("公開元で原本を開く", entry.url, icon=":material/open_in_new:")
-        st.caption("原本はシステムに保存していません。下の表は、この書類から読み取って検算を通した科目です（出典頁付き）")
+        if entry.path is None:
+            st.caption("原本はシステムに保存していません。下の表は、この書類から読み取って検算を通した科目です（出典頁付き）")
+        else:
+            st.caption("下の表は、この書類から読み取って検算を通した科目です（出典頁付き）")
+            st.download_button("原本を保存", entry.path.read_bytes(), file_name=entry.path.name,
+                               icon=":material/download:")
         if rows:
             df = pd.DataFrame(rows).drop(columns=["key"])
             st.dataframe(df, hide_index=True, width="stretch", height=460,
@@ -130,6 +135,20 @@ def _failed_table(rows: list[dict]) -> None:
         st.caption("不一致の明細は記録されていません（古い読み取り記録）。財務・4P突合マトリクスの読み取り結果をご覧ください")
 
 
+def _dropped(x: dict, hint: str) -> None:
+    """読み取りで標準科目に当てはめられず、金額ごと捨てた行。検算の不一致・未確認の原因になりうる。"""
+    rows = ((x.get("report") or {}).get("dropped_values")) or []
+    if not rows:
+        return
+    body = "".join(f"<tr><td>{html.escape(r.get('section') or '')}</td><td>{html.escape(r.get('label') or '')}</td>"
+                   f"<td>{'' if r.get('prev') is None else format(r['prev'], ',')}</td>"
+                   f"<td>{'' if r.get('cur') is None else format(r['cur'], ',')}</td></tr>" for r in rows)
+    st.markdown(f"**読み取れなかった行（金額あり・{len(rows)}件）**")
+    st.html('<div class="dd-cmp-wrap"><table class="dd-cmp"><thead><tr><th>区分</th><th>原資料の科目名</th><th>前期</th>'
+            '<th>当期</th></tr></thead><tbody>' + body + "</tbody></table></div>")
+    st.caption(hint)
+
+
 def _gate_report(run) -> None:
     """投入資料の検算ゲートの結果。軽微な差異は人が「差し替え」か「端数調整で続行」を選ぶ。重大な差異は止める。"""
     import json
@@ -178,6 +197,12 @@ def _gate_report(run) -> None:
                 if m.get("reasons"):
                     st.caption("重大と判定した理由：" + "／".join(m["reasons"]))
                 _failed_table(x.get("failed_checks") or [])
+                _dropped(x, "不一致は、元資料の誤りではなく、これらの行を読み取れなかったことによる可能性があります")
+        elif gate == "未確認":
+            with st.container(border=True):
+                st.error(f"**{name}**：中心となる検算（{'・'.join(m.get('unverified_core', []))}）を確かめられないため、"
+                         "診断プロセスを停止しました。確かめていない数値で論争を始めることはしません。", icon=":material/help:")
+                _dropped(x, "資料を補うか、読み取れる形（科目名の書き方など）に直して再投入してください")
         elif gate == "差し替え待ち":
             st.info(f"**{name}**：差し替えを選びました。訂正した財務諸表を投入してください（この資料は採用していません）。",
                     icon=":material/sync:")

@@ -30,12 +30,17 @@ class DocEntry:
     url: str | None = None           # 公開元の URL（有価証券報告書など）
 
 
-def _kind(filename: str) -> str:
+def _kind(filename: str, title: str = "") -> str:
+    """資料の種類。拡張子ではなく中身の名前で見る（Excel の財務諸表を「検算表」と呼ばない）。"""
+    from core.mock_engine import classify
+
     n = filename.lower()
     if n.endswith(QUALITATIVE_SUFFIXES):
         return "定性"
-    if "検算" in filename or n.endswith((".xlsx", ".xls")):
+    if "検算" in title or "検算" in filename:
         return "検算表"
+    if classify(title or filename).startswith("財務諸表") or classify(filename).startswith("財務諸表"):
+        return "財務"
     return "資料"
 
 
@@ -50,28 +55,34 @@ def documents(run, ctx, state=None) -> list[DocEntry]:
                     added[hit.group(1)] = m.round
     out: list[DocEntry] = []
     seen: set[str] = set()
-    src = run.financials_source()
-    if ctx.fin is not None:
-        where = "この回次" if src is None or src.run_id == run.run_id else f"{src.meta.label}から引き継ぎ"
-        for name, info in ctx.fin.documents.items():
-            out.append(DocEntry(name=name, kind="財務", origin=f"財務データの出典書類（{where}）", citable=True,
-                                url=(info or {}).get("url")))
-            seen.add(name)
     chain, r = [], run
     while r is not None:
         chain.append(r)
         r = r.parent()
+    files = []   # （回次, ファイル, 表示名）古い回次から
     for r in reversed(chain):
+        files += [(r, p, input_title(p)) for p in r.inputs() if p.name != "financials.json"]
+    used: set = set()
+    src = run.financials_source()
+    if ctx.fin is not None:
+        where = "この回次" if src is None or src.run_id == run.run_id else f"{src.meta.label}から引き継ぎ"
+        for name, info in ctx.fin.documents.items():
+            # 財務データの出典書類が投入ファイルそのものなら、1行にまとめる（同じ Excel を2回並べない）
+            hit = next(((r, p) for r, p, t in reversed(files) if p not in used and name in (p.name, t)), None)
+            if hit:
+                used.add(hit[1])
+            out.append(DocEntry(name=name, kind="財務", origin=f"財務データの出典書類（{where}）", citable=True,
+                                url=(info or {}).get("url"), path=hit[1] if hit else None))
+            seen.add(name)
+    for r, p, title in files:
+        if p in used or title in seen:
+            continue
+        seen.add(title)
         label = "この回次" if r.run_id == run.run_id else f"{r.meta.label}から引き継ぎ"
-        for p in r.inputs():
-            title = input_title(p)
-            if p.name == "financials.json" or title in seen:
-                continue
-            seen.add(title)
-            rnd = added.get(title)
-            origin = f"議論の途中で追加（第{rnd}ラウンド）" if rnd else label
-            out.append(DocEntry(name=title, kind=_kind(p.name), origin=origin, citable=title in ctx.registry,
-                                added_round=rnd, path=p))
+        rnd = added.get(title)
+        origin = f"議論の途中で追加（第{rnd}ラウンド）" if rnd else label
+        out.append(DocEntry(name=title, kind=_kind(p.name, title), origin=origin, citable=title in ctx.registry,
+                            added_round=rnd, path=p))
     return out
 
 

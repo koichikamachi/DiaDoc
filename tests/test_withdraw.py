@@ -68,3 +68,37 @@ def test_bundled_inherited_and_frozen_documents_are_protected(data):
     first = list_runs("C002_sample_crisis")[0]
     assert first.frozen and not withdrawable(first, first.path / "inputs" / "hearing_memo_62.md")[0]
     assert not withdrawable(new, memo)[0]                                # 親の回次から引き継いだ資料
+
+
+def test_adopted_excel_is_listed_once_as_a_financial_document(data):
+    from core import digest
+    from core.graph import DebateSession
+
+    company = create_company("丙")
+    run, _, _ = handle_upload(company, "財務諸表_丙_第5期.xlsx", b"PK", extractor=RealLike())
+    s = DebateSession(run)
+    docs = digest.documents(run, s.ctx, None)
+    assert [(d.name, d.kind) for d in docs] == [("財務諸表_丙_第5期.xlsx", "財務")]      # 出典書類と投入ファイルを1行に
+    assert docs[0].path == run.path / "inputs" / "財務諸表_丙_第5期.xlsx"
+    ok, why = withdrawable(run, docs[0].path)
+    assert not ok and "採用済み" in why
+
+
+def test_document_kind_follows_the_name_not_the_extension():
+    from core.digest import _kind
+
+    assert _kind("財務諸表_甲_第24期.xlsx", "財務諸表_甲_第24期") == "財務"
+    assert _kind("standard_mapping_check_73.xlsx", "標準科目対応_検算_第73期単体") == "検算表"
+    assert _kind("memo.md", "面談メモ") == "定性"
+
+
+def test_mock_reason_names_the_real_cause(monkeypatch):
+    import config
+
+    monkeypatch.setenv("DBD_EXTRACTOR", "mock")
+    monkeypatch.setenv("GEMINI_API_KEY", "dummy-for-test")
+    assert "DBD_EXTRACTOR=mock" in config.mock_reason()
+    monkeypatch.delenv("DBD_EXTRACTOR")
+    monkeypatch.delenv("GEMINI_API_KEY")
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    assert config.mock_reason() == "GEMINI_API_KEY 未設定"

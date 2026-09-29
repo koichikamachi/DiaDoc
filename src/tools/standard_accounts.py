@@ -14,6 +14,7 @@ ACCOUNTS: tuple[tuple[str, str, str, str, bool], ...] = (
     ('fg', 'BS', '流動資産', '製品・商品', False),
     ('wip', 'BS', '流動資産', '仕掛品', False),
     ('rm', 'BS', '流動資産', '原材料', False),
+    ('stock', 'BS', '流動資産', '棚卸資産（一括表示）', False),
     ('pp', 'BS', '流動資産', '前払費用', False),
     ('oca', 'BS', '流動資産', 'その他流動資産', False),
     ('ada1', 'BS', '流動資産', '貸倒引当金（流動）', False),
@@ -41,6 +42,7 @@ ACCOUNTS: tuple[tuple[str, str, str, str, bool], ...] = (
     ('tinv', 'BS', '投資その他', '投資その他の資産合計', True),
     ('tfa', 'BS', '固定資産', '固定資産合計', True),
     ('ta', 'BS', '資産', '資産合計', True),
+    ('np', 'BS', '流動負債', '支払手形', False),
     ('ap', 'BS', '流動負債', '買掛金', False),
     ('stl', 'BS', '流動負債', '短期借入金', False),
     ('cltd', 'BS', '流動負債', '1年内返済長期借入金', False),
@@ -109,6 +111,9 @@ ACCOUNTS: tuple[tuple[str, str, str, str, bool], ...] = (
     ('ttx', 'PL', '税金', '法人税等合計', True),
     ('ni', 'PL', '利益', '当期純利益', True),
     ('mat', '製造原価', '製造費用', '材料費', False),
+    ('bmat', '製造原価', '材料費内訳', '期首材料棚卸高', False),
+    ('mpur', '製造原価', '材料費内訳', '当期材料仕入高', False),
+    ('emat', '製造原価', '材料費内訳', '期末材料棚卸高', False),
     ('lab', '製造原価', '製造費用', '労務費', False),
     ('exp', '製造原価', '製造費用', '経費', False),
     ('e_dep', '製造原価', '経費内訳', '減価償却費（製造）', False),
@@ -118,6 +123,7 @@ ACCOUNTS: tuple[tuple[str, str, str, str, bool], ...] = (
     ('e_rep', '製造原価', '経費内訳', '修繕費（製造）', False),
     ('tmc', '製造原価', '製造費用', '当期総製造費用', True),
     ('bwip', '製造原価', '仕掛品', '期首仕掛品', False),
+    ('wip_chg', '製造原価', '仕掛品', '仕掛品増減（期首−期末）', False),
     ('ewip', '製造原価', '仕掛品', '期末仕掛品', False),
     ('cgm', '製造原価', '製品', '当期製品製造原価', True),
     ('bfg', '売上原価調整', '製品', '期首製品', False),
@@ -152,6 +158,7 @@ ACCOUNTS: tuple[tuple[str, str, str, str, bool], ...] = (
     ('sga_dep', '販管費内訳', '一般', '減価償却費（販管費）', False),
     ('sga_fee', '販管費内訳', '一般', '支払手数料', False),
     ('sga_rd', '販管費内訳', '一般', '研究開発費', False),
+    ('sga_supplies', '販管費内訳', '一般', '消耗品費', False),
     ('sga_misc', '販管費内訳', '一般', '雑費', False),
     ('suspense', '勘定科目内訳', '監視科目', '仮払金', False),
     ('other_recv', '勘定科目内訳', '監視科目', '未収入金', False),
@@ -167,6 +174,8 @@ SYNONYMS: dict[str, tuple[str, ...]] = {
     'fg': ('商品及び製品', '製品・商品'),
     'wip': ('仕掛品',),
     'rm': ('原材料及び貯蔵品', '原材料'),
+    'stock': ('棚卸資産', 'たな卸資産', '在庫'),
+    'np': ('支払手形',),
     'mac': ('機械及び装置', '機械装置'),
     'tool': ('工具、器具及び備品', '工具器具備品', '器具備品'),
     'veh': ('車両運搬具',),
@@ -200,6 +209,10 @@ SYNONYMS: dict[str, tuple[str, ...]] = {
     'ooi': ('雑収入',),
     'ooe': ('雑損失',),
     'mat': ('材料費',),
+    'bmat': ('期首材料棚卸高', '期首原材料棚卸高'),
+    'mpur': ('当期材料仕入高', '材料仕入高', '原材料仕入高'),
+    'emat': ('期末材料棚卸高', '期末原材料棚卸高'),
+    'wip_chg': ('仕掛品増減', '仕掛品増減額'),
     'lab': ('労務費',),
     'tmc': ('当期総製造費用',),
     'cgm': ('当期製品製造原価',),
@@ -223,6 +236,7 @@ SYNONYMS: dict[str, tuple[str, ...]] = {
     'sga_tax': ('租税公課',),
     'sga_fee': ('支払手数料',),
     'sga_rd': ('研究開発費', '試験研究費'),
+    'sga_supplies': ('消耗品費', '事務用消耗品費', '工場消耗品・消耗品費'),
     'sga_misc': ('雑費',),
     'suspense': ('仮払金',),
     'other_recv': ('未収入金', '未収金'),
@@ -235,7 +249,7 @@ AMBIGUOUS: frozenset[str] = frozenset(['減価償却費', '修繕費', 'その�
 
 # 符号の約束：株主資本等変動計算書では△（マイナス）で表示されるが、標準科目では減少額を正の数で持つもの。
 # 検算（繰越利益剰余金の動き）は「前期末＋純利益−配当−積立」で計算するため、正の数でなければならない。
-POSITIVE_MAGNITUDE: frozenset[str] = frozenset({"dvd", "grt"})
+POSITIVE_MAGNITUDE: frozenset[str] = frozenset({"dvd", "grt", "emat"})
 
 # 会社によっては行そのものがない科目。行がなければ検算では0とみなし「未確認」にしない（検算の定義で optional を付ける）
 OPTIONAL_KEYS: frozenset[str] = frozenset({"stl"})
@@ -267,12 +281,32 @@ def _build_reverse() -> dict[str, str]:
 _REVERSE = _build_reverse()
 
 
+def _strip_brackets(n: str) -> list[str]:
+    """「(期首材料棚卸高)」「給料手当(販管)」のような括弧を外した候補（外側 → 末尾の順）。"""
+    import re
+
+    out = []
+    if n.startswith("(") and n.endswith(")") and n.count("(") == 1:
+        out.append(n[1:-1])
+    m = re.fullmatch(r"(.+?)\([^()]*\)", n)
+    if m:
+        out.append(m.group(1))
+    return out
+
+
 def key_for_label(label: str) -> str | None:
-    """原資料の科目名から標準科目のキーを引く。曖昧な語や未登録の語は None。"""
+    """原資料の科目名から標準科目のキーを引く。曖昧な語や未登録の語は None。
+
+    完全一致がなければ、括弧で囲んだ行（内訳の注記）と、末尾の括弧書き（「給料手当（販管）」など）を外して引き直す。
+    """
     n = _normalize_label(label)
-    if not n or n in {_normalize_label(a) for a in AMBIGUOUS}:
-        return None
-    return _REVERSE.get(n)
+    ambiguous = {_normalize_label(a) for a in AMBIGUOUS}
+    for cand in [n, *_strip_brackets(n)]:
+        if not cand or cand in ambiguous:
+            continue
+        if cand in _REVERSE:
+            return _REVERSE[cand]
+    return None
 
 
 def catalog_text() -> str:

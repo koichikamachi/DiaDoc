@@ -68,6 +68,7 @@ class Check:
     reported: tuple[Term, ...]
     periods: tuple[str, ...] = ("prev", "cur")
     fixed_tolerance: int | None = None  # 表間連携などは件数によらず最低許容差で見る
+    alts: tuple[tuple[Term, ...], ...] = ()  # 内訳の別の書き方（例：販管費を「販売費＋一般管理費」でなく費目別に書く書類）
 
 
 def _t(*keys: str) -> tuple[Term, ...]:
@@ -80,16 +81,20 @@ def _t(*keys: str) -> tuple[Term, ...]:
     return tuple(out)
 
 
+SGA_DETAIL = ("sga_officer", "sga_salary", "sga_bonus", "sga_retire", "sga_welfare_legal", "sga_welfare", "sga_freight",
+              "sga_adv", "sga_promo", "sga_entertain", "sga_travel", "sga_comm", "sga_util", "sga_repair", "sga_rent",
+              "sga_lease", "sga_insurance", "sga_tax", "sga_dep", "sga_fee", "sga_rd", "sga_supplies", "sga_misc")
+
 CHECKS: tuple[Check, ...] = (
     # 貸借対照表の内訳と合計
-    Check("BS内訳", "流動資産合計", _t("cash", "nr", "ar", "fg", "wip", "rm", "pp", "oca", "ada1"), _t("tca")),
+    Check("BS内訳", "流動資産合計", _t("cash", "nr", "ar", "fg", "wip", "rm", "stock", "pp", "oca", "ada1"), _t("tca")),
     Check("BS内訳", "有形固定資産合計", _t("bld", "str", "mac", "veh", "tool", "land", "lease", "cip"), _t("tppe")),
     Check("BS内訳", "無形固定資産合計", _t("sw", "oint"), _t("tint")),
     Check("BS内訳", "投資その他の資産合計", _t("inv", "aff", "cap", "ltl", "ltpp", "dep", "oinv", "ada2"), _t("tinv")),
     Check("BS内訳", "固定資産合計", _t("tppe", "tint", "tinv"), _t("tfa")),
     Check("BS内訳", "資産合計", _t("tca", "tfa"), _t("ta")),
     Check("BS内訳", "流動負債合計",
-          _t("ap", "stl", "cltd", "cbond", "cls", "oap", "acc", "refund", "tax", "ctax", "wh", "dr", "bonus", "ocl"), _t("tcl")),
+          _t("np", "ap", "stl", "cltd", "cbond", "cls", "oap", "acc", "refund", "tax", "ctax", "wh", "dr", "bonus", "ocl"), _t("tcl")),
     Check("BS内訳", "固定負債合計", _t("bond", "ltd", "ltdep", "lls", "ret", "sbp", "dtl", "oltl"), _t("tltl")),
     Check("BS内訳", "負債合計", _t("tcl", "tltl"), _t("tl")),
     Check("BS内訳", "利益剰余金合計", _t("lr", "gr", "re"), _t("tre")),
@@ -100,7 +105,7 @@ CHECKS: tuple[Check, ...] = (
     Check("貸借一致", "資産合計＝負債純資産合計", _t("ta"), _t("tle")),
     # 損益の段階利益
     Check("段階利益", "売上総利益", _t("sales", "-cogs"), _t("gp")),
-    Check("段階利益", "販管費合計", _t("sell", "adm"), _t("sga")),
+    Check("段階利益", "販管費合計", _t("sell", "adm"), _t("sga"), alts=(_t(*SGA_DETAIL),)),
     Check("段階利益", "営業利益", _t("gp", "-sga"), _t("op")),
     Check("段階利益", "営業外収益合計", _t("ii", "div", "ooi"), _t("tnoi")),
     Check("段階利益", "営業外費用合計", _t("ie", "bde", "idle", "ooe"), _t("tnoe")),
@@ -112,7 +117,7 @@ CHECKS: tuple[Check, ...] = (
     Check("段階利益", "当期純利益", _t("pbt", "-ttx"), _t("ni")),
     # 製造原価から売上原価への流れ
     Check("原価の流れ", "当期総製造費用", _t("mat", "lab", "exp"), _t("tmc")),
-    Check("原価の流れ", "当期製品製造原価", _t("tmc", "bwip", "-ewip"), _t("cgm")),
+    Check("原価の流れ", "当期製品製造原価", _t("tmc", "bwip", "-ewip", "wip_chg"), _t("cgm")),
     Check("原価の流れ", "売上原価（調整表）", _t("bfg", "cgm", "pur", "-trf", "-efg", "-emd"), _t("cogs")),
     # 主要経営指標との照合
     Check("指標照合", "売上高", _t("sales"), _t("k_sales")),
@@ -132,29 +137,106 @@ CHECKS: tuple[Check, ...] = (
 )
 
 
-def _sum(fin: Financials, terms: tuple[Term, ...], period: str) -> tuple[int | None, list[str]]:
-    total, missing = 0, []
+# 合計行が書類にないとき、内訳から組み立てる定義（検算の定義から作る。材料費は材料の受払いからも組み立てられる）
+EXTRA_DEFS: dict[str, tuple[tuple[Term, ...], ...]] = {
+    "mat": (_t("bmat", "mpur", "-emat"),),
+}
+MAX_DEPTH = 6
+
+# 通過に欠かせない検算。これが確かめられない（未確認の）書類は、不一致がなくても通さない
+CORE_CHECKS: tuple[tuple[str, str], ...] = (
+    ("BS内訳", "資産合計"), ("BS内訳", "負債合計"), ("BS内訳", "純資産合計"), ("貸借一致", "資産合計＝負債純資産合計"),
+    ("段階利益", "売上総利益"), ("段階利益", "営業利益"), ("段階利益", "経常利益"), ("段階利益", "当期純利益"))
+
+
+def _defs() -> dict[str, tuple[tuple[Term, ...], ...]]:
+    out: dict[str, tuple[tuple[Term, ...], ...]] = dict(EXTRA_DEFS)
+    for c in CHECKS:
+        if len(c.reported) == 1 and c.reported[0].period is None and all(t.period is None for t in c.terms):
+            out.setdefault(c.reported[0].key, (c.terms, *c.alts))
+    return out
+
+
+def doc_periods(fin: Financials) -> set[str]:
+    """書類に載っている期（前期の欄がない一期だけの書類では {"cur"}）。"""
+    return {p for p in ("prev", "cur") if any(getattr(it, p) is not None for it in fin.items.values())}
+
+
+def _leaf(fin: Financials, key: str, period: str, periods: set[str], depth: int) -> tuple[int | None, int]:
+    """科目の値と、実際に書類から読んだ行の数。
+
+    - 書類に行がある → その値
+    - 書類にない合計行 → 内訳から組み立てる（別の書き方があれば、先に書いたものから順に試す）
+    - 書類にない内訳行 → その会社には該当がないものとして 0（同じ期の欄がある場合に限る）
+    - その期の欄が書類にない → None（未確認）
+    """
+    v = fin.value(key, period)
+    if v is not None:
+        return v, 1
+    if period not in periods or key in fin.items:   # 行はあるのに金額が読めていない → 未確認（0 とはみなさない）
+        return None, 0
+    defs = _DEFS.get(key)
+    if defs and depth < MAX_DEPTH:
+        for terms in defs:
+            total, n, missing = _eval(fin, terms, period, periods, depth + 1)
+            if n and not missing:
+                return total, n
+    return 0, 0
+
+
+def _eval(fin: Financials, terms: tuple[Term, ...], period: str, periods: set[str],
+          depth: int = 0) -> tuple[int, int, list[str]]:
+    total, n, missing = 0, 0, []
     for t in terms:
-        v = fin.value(t.key, t.period or period)
+        v, c = _leaf(fin, t.key, t.period or period, periods, depth)
         if v is None:
-            if not t.optional:
+            missing.append(t.key)
+            continue
+        total += t.sign * v
+        n += c
+    return total, n, missing
+
+
+def _computed(fin: Financials, check: Check, period: str, periods: set[str]) -> tuple[int | None, int, list[str]]:
+    """内訳側の計算値。別の書き方があれば、書類から読んだ行があるものを先頭から採る。"""
+    first = None
+    for terms in (check.terms, *check.alts):
+        total, n, missing = _eval(fin, terms, period, periods)
+        if first is None:
+            first = (total, n, missing)
+        if n and not missing:
+            return total, n, []
+    total, n, missing = first
+    # 内訳が1行も書類にない（「営業外収益 4,133」のように合計だけが書かれた行）は、確かめようがないので未確認
+    return (None if missing or not n else total), n, missing
+
+
+def _reported(fin: Financials, check: Check, period: str, periods: set[str]) -> tuple[int | None, list[str]]:
+    """合計側（書類に書かれた値）。書類に1行もなければ未確認。組み立てはしない。"""
+    total, found, missing = 0, 0, []
+    for t in check.reported:
+        p = t.period or period
+        v = fin.value(t.key, p)
+        if v is None:
+            if p not in periods:
                 missing.append(t.key)
             continue
         total += t.sign * v
-    return (None if missing else total), missing
-
-
-def _present_count(fin: Financials, terms: tuple[Term, ...], period: str) -> int:
-    return sum(1 for t in terms if fin.value(t.key, t.period or period) is not None)
+        found += 1
+    if missing or not found:
+        return None, missing or [t.key for t in check.reported]
+    return total, []
 
 
 def run_check(fin: Financials, check: Check) -> CheckResult:
     periods, all_missing = [], []
+    present = doc_periods(fin)
     for period in check.periods:
-        computed, miss_c = _sum(fin, check.terms, period)
-        reported, miss_r = _sum(fin, check.reported, period)
+        if period not in present:          # 前期の欄がない書類では、前期の検算は行わない（未確認にもしない）
+            continue
+        computed, n, miss_c = _computed(fin, check, period, present)
+        reported, miss_r = _reported(fin, check, period, present)
         all_missing += miss_c + miss_r
-        n = _present_count(fin, check.terms, period)
         tol = check.fixed_tolerance if check.fixed_tolerance is not None else tolerance(n, fin.rounding)
         if fin.rounding == "yen":
             tol = 0
@@ -167,9 +249,18 @@ def run_check(fin: Financials, check: Check) -> CheckResult:
         periods.append(PeriodCheck(period=period, computed=computed, reported=reported, diff=diff,
                                    tolerance=tol, status="一致" if abs(diff) <= tol else "不一致", adjusted=adj))
     statuses = {p.status for p in periods}
-    status = "不一致" if "不一致" in statuses else ("未確認" if "未確認" in statuses else "一致")
+    status = "不一致" if "不一致" in statuses else ("未確認" if "未確認" in statuses or not periods else "一致")
     return CheckResult(group=check.group, name=check.name, n_components=len(check.terms),
                        periods=periods, status=status, missing=sorted(set(all_missing)))
+
+
+def core_unverified(report: ReconciliationReport) -> list[str]:
+    """通過に欠かせない検算のうち、確かめられなかったもの（不一致は別に扱う）。"""
+    by_key = {(c.group, c.name): c for c in report.checks}
+    return [n for g, n in CORE_CHECKS if (g, n) in by_key and by_key[(g, n)].status == "未確認"]
+
+
+_DEFS = _defs()
 
 
 def reconcile(fin: Financials, checks: tuple[Check, ...] = CHECKS) -> ReconciliationReport:

@@ -362,7 +362,7 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
 
 GATE_BADGE = {"通過": ("green", "検算ゲート通過"), "通過（端数調整）": ("green", "検算ゲート通過（端数調整を承認）"),
               "軽微": ("orange", "軽微な差異（人の判断待ち）"), "差し替え待ち": ("gray", "差し替え待ち（不採用）"),
-              "停止": ("red", "重大な差異で停止"), "対象外": ("gray", "検算対象外（部分資料）")}
+              "停止": ("red", "重大な差異で停止"), "未確認": ("red", "中心の検算を確かめられず停止"), "対象外": ("gray", "検算対象外（部分資料）")}
 
 
 def render_extractions(run) -> None:

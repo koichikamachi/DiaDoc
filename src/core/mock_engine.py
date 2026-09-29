@@ -14,6 +14,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
+import config
 from core import metrics
 from core.guardrails import reconcile, review_claim
 from core.runs import Run, input_title, latest_run, list_runs, now_iso, start_next_run
@@ -520,7 +521,7 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
             r["status"] = "受領（検証待ち）"
             r.setdefault("received", []).append({"file": saved.name, "run": run.run_id, "at": now_iso()})
             touched.append(r)
-    if real and outcome.gate != "停止":
+    if real and outcome.gate not in ("停止", "未確認"):
         items = outcome.financials.items
         for r in requests:
             keys = REQUEST_KEYS.get(r["id"])
@@ -535,7 +536,7 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
     if error:
         body = f"読み取りに失敗しました（{error}）。資料は保存済みです。数値は未確認のまま扱います。"
     elif outcome.report.is_mock:
-        body = ("読み取りエンジン：モック（GEMINI_API_KEY 未設定）。ファイルの中身は読まず、制作サンプル（C001 アルファ製菓・モデル企業 第73期）を返しています。"
+        body = (f"読み取りエンジン：モック（{config.mock_reason()}）。ファイルの中身は読まず、制作サンプル（C001 アルファ製菓・モデル企業 第73期）を返しています。"
                 + outcome.summary() + "。")
     else:
         body = f"読み取りエンジン：{outcome.report.extractor}。{outcome.summary()}。"
@@ -558,6 +559,12 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
         added.append(_msg("judge", "検算ゲート",
                           f"重大な計算不一致（{head}）のため、診断プロセスを停止しました。誤ったトリアージ判定を防ぐため、"
                           "この資料の数値は論争に使いません。元資料の数値を訂正のうえ再投入してください。", ruling="保留"))
+    elif outcome is not None and outcome.gate == "未確認":
+        core = "・".join((outcome.materiality or {}).get("unverified_core", []))
+        added.append(_msg("judge", "検算ゲート",
+                          f"中心となる検算（{core}）を確かめられないため、診断プロセスを停止しました。"
+                          "確かめていない数値で論争を始めることはしません。読み取れなかった行を確かめ、資料を補って再投入してください。",
+                          ruling="保留"))
     elif outcome is not None and outcome.gate == "軽微":
         head = (outcome.materiality or {}).get("headline", "")
         added.append(_msg("judge", "検算ゲート",

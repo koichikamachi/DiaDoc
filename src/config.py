@@ -44,6 +44,13 @@ def extractor_mode() -> str:
     return "gemini" if gemini_api_key() else "mock"
 
 
+def mock_reason() -> str:
+    """読み取りがモックになっている理由（画面の説明用）。"""
+    if os.environ.get("DBD_EXTRACTOR", "").lower() == "mock":
+        return "環境変数 DBD_EXTRACTOR=mock で固定"
+    return "GEMINI_API_KEY 未設定" if not gemini_api_key() else "モック指定"
+
+
 def debate_mode() -> str:
     """"gemini" か "mock"。DBD_DEBATE=mock で論争だけを台本動作に固定できる。"""
     if os.environ.get("DBD_DEBATE", "").lower() == "mock":
