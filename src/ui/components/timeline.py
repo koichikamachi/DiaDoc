@@ -25,7 +25,7 @@ LONG_TEXT = 240   # これより長い発言は冒頭だけ見せて折りたた
 def _verdicts(state: DebateState) -> dict[str, tuple[str, list[str]]]:
     out: dict[str, tuple[str, list[str]]] = {}
     for r in state.rulings:
-        out[r.message_id] = (r.verdict, r.reasons)
+        out[r.message_id] = ("減額採択" if r.reduced else r.verdict, r.reasons)
     return out
 
 
@@ -49,7 +49,7 @@ def _bridge_html(m: DebateMessage, counted: dict) -> str:
     return "".join(rows)
 
 
-VERDICT_CLASS = {"通過": ("ok", "✓"), "差し戻し": ("back", "↩"), "退け": ("rej", "✕")}
+VERDICT_CLASS = {"通過": ("ok", "✓"), "減額採択": ("back", "▽"), "差し戻し": ("back", "↩"), "退け": ("rej", "✕")}
 
 
 def _header_html(m: DebateMessage, verdict: str | None) -> str:
@@ -99,7 +99,10 @@ def _judge_body(m: DebateMessage) -> None:
                     for k in ("通過", "差し戻し", "退け"))
     req = "—" if n.required_cf is None else f"{n.required_cf:,}"
     gap = "—" if n.gap is None else f"{n.gap:,}"
-    rw = "流出なし" if n.runway is None else f"{n.runway:.1f}か月"
+    from core.metrics import runway_label
+
+    net = None if n.required_cf is None else n.accumulated - n.required_cf
+    rw = runway_label(n.runway, net, short=True)
     st.html(f'<div class="dd-tally">{chips}</div>'
             f'<div class="dd-mini"><span>必要CF<b>{req}</b></span><span>回収CF累計<b>{n.accumulated:,}</b></span>'
             f'<span>不足<b>{gap}</b></span><span>残余月数<b>{rw}</b></span><span>膠着<b>{n.stalemate}回</b></span></div>')
@@ -154,6 +157,16 @@ def _card(m: DebateMessage, verdicts: dict, counted: dict, runway: float | None 
             return
         if m.speaker == "human" and m.addressee:
             st.markdown(f":gray[:material/subdirectory_arrow_right: {PROFILES[m.addressee]['name']} 宛て]")
+        if m.target_message:
+            from tools.standard_accounts import LABELS
+
+            what = f"「{LABELS.get(m.challenged_account, m.challenged_account)}」" if m.challenged_account else "提案全体"
+            if m.action == "攻撃":
+                cf = ("見込めない（0）" if not m.feasible_cf else f"{m.feasible_cf:,}千円（年）") if m.feasible_cf is not None \
+                    else "示されていない"
+                st.markdown(f":gray[:material/reply: {m.target_message} への反論　疑義：{what}　現実的な資金効果：{cf}]")
+            else:
+                st.markdown(f":gray[:material/shield: {m.target_message} への防御]")
         head, rest = _split_long(m.text)
         st.markdown(head.replace("\n", "  \n"))
         if m.options:
@@ -299,27 +312,27 @@ def render(session: DebateSession, frozen: bool) -> None:
                             height=80, disabled=frozen, key="intervene_text")
         c1, c2 = st.columns([1.3, 1], vertical_alignment="bottom")
         to = c1.selectbox("誰に答えさせるか", list(targets), format_func=targets.get, key="intervene_to",
-                          disabled=frozen or finished,
+                          disabled=frozen,
                           help=f"「自動」なら、次の発言者（いまは {nxt_name}）がこの介入を読んで答えます")
-        go = c2.checkbox("介入したらすぐ1手進める", value=True, key="intervene_go", disabled=frozen or finished)
-        sent = st.form_submit_button("介入する", icon=":material/record_voice_over:", disabled=frozen)
-    st.caption(f"指名した担当者は順番を割り込んで答え、答えた後は元の順番に戻ります。"
-               f"「自動」なら次の発言者（いまは {nxt_name}）が答えます")
+        sent = c2.form_submit_button("介入する", icon="👤", type="primary", width="stretch", disabled=frozen)
+    st.caption((f"論争は閉じています。介入すると論争を再開し（探索に戻ります）、担当者がすぐ答えます。"
+                if finished else
+                f"介入すると、担当者がすぐ答えます。指名した担当者は順番を割り込んで答え、答えた後は元の順番に戻ります。"
+                f"「自動」なら次の発言者（いまは {nxt_name}）が答えます"))
     if sent:
         ss["_reset_intervene_to"] = True
+        was_finished = session.finished
         try:
             intervene(session, text, addressee=to)
         except EmptyInterventionError:
             st.session_state.flash = "介入の内容が空です"
             st.rerun()
-        if go and not session.finished:
-            with st.spinner("介入に答える発言を生成しています…"):
-                try:
-                    session.step()
-                    st.session_state.debate_error = None
-                except Exception as e:
-                    st.session_state.debate_error = f"{type(e).__name__}: {e}"
-            st.session_state.flash = "介入を書き込み、答えを生成しました"
-        else:
-            st.session_state.flash = "介入を書き込みました。「▶ 1手進める」で答えが出ます"
+        with st.spinner("介入に答える発言を生成しています…"):
+            try:
+                session.step()
+                st.session_state.debate_error = None
+            except Exception as e:
+                st.session_state.debate_error = f"{type(e).__name__}: {e}"
+        st.session_state.flash = ("論争を再開し、介入への答えを生成しました" if was_finished
+                                  else "介入を書き込み、答えを生成しました")
         st.rerun()

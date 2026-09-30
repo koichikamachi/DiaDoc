@@ -50,6 +50,8 @@ class DebateState(BaseModel):
     adopted_option: str | None = None    # 人間が採った道（論争の後に記録する。論争の審査・判定には使わない）
     adopted_note: str = ""
     stop_reason: str | None = None
+    reopen_base: int = 0                 # 論争を再開したときのラウンド。ラウンドの上限は再開からの数で見る
+    reopened: int = 0                    # 再開した回数
 
     @model_validator(mode="after")
     def _agenda_cap(self) -> "DebateState":
@@ -63,10 +65,15 @@ class DebateState(BaseModel):
 
     def passed_bridges(self) -> list[tuple[str, CausalBridge]]:
         """Judge が通過させた発言の因果ブリッジ（発言ID付き）。後の判定が優先する。"""
-        latest: dict[str, str] = {}
+        latest: dict[str, Ruling] = {}
         for r in self.rulings:
-            latest[r.message_id] = r.verdict
-        return [(m.id, b) for m in self.messages if latest.get(m.id) == "通過" for b in m.bridges]
+            latest[r.message_id] = r
+        out = []
+        for m in self.messages:
+            r = latest.get(m.id)
+            if r is not None and r.verdict == "通過":   # 減額採択なら、反論を受けて減らした資金効果で数える
+                out += [(m.id, b) for b in (r.adjusted_bridges if r.adjusted_bridges is not None else m.bridges)]
+        return out
 
 
 def initial_state(company_id: str, run_id: str, base: CashBase, mission: str | None = None) -> DebateState:

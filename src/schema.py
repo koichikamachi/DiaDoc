@@ -249,6 +249,9 @@ class DebateMessage(BaseModel):
     judge_note: JudgeNote | None = None                          # 裁定の構造化された中身（Judge の裁定のみ）
     addressee: AgentId | None = None                             # 人間の介入の宛先（指名された担当者が次に答える）
     comparison: list[OptionAssessment] = Field(default_factory=list)  # 選択肢の比較（Judge の比較のみ）
+    target_message: str | None = None      # 攻撃・防御の相手の発言ID（攻撃なら疑義を向けた提案、防御なら受けた攻撃）
+    challenged_account: str | None = None  # 攻撃が疑義を向けた科目（なければ提案全体）
+    feasible_cf: int | None = None         # 攻撃する側が現実的と見る資金効果（年・千円）。0 は「見込めない」
     at: str = ""                                                 # 発言の時刻（ISO 8601。記録が古いものは空）
 
 
@@ -304,6 +307,12 @@ class Ruling(BaseModel):
     round: int
     verdict: Verdict
     reasons: list[str] = Field(default_factory=list)
+    by: Literal["review", "challenge"] = "review"   # 発言そのものの審査か、審査を通った反論による見直しか
+    adjusted_bridges: list[CausalBridge] | None = None   # 減額採択：反論を受けて数える因果ブリッジ（資金効果を減らしたもの）
+
+    @property
+    def reduced(self) -> bool:
+        return self.verdict == "通過" and self.adjusted_bridges is not None
 
 
 class AgendaItem(BaseModel):

@@ -32,6 +32,8 @@ def intervene(session: DebateSession, text: str, sources: list[SourceRef] | None
         raise EmptyInterventionError("介入の内容が空です")
     if not session.started:
         session.start()
+    if session.finished:   # 閉じた後の介入は、論争を再開してから書き込む（新しい条件で審理し直す）
+        session.reopen("人間の介入")
     st = session.state()
     if attach_name and attach_text:
         saved = session.run.save_input(f"{attach_name}.md", attach_text.encode("utf-8"))

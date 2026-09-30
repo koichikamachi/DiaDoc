@@ -532,10 +532,6 @@ class PhasePolicy:
 DEFAULT_POLICY = PhasePolicy()
 
 
-def _fmt_runway(m: float | None) -> str:
-    return "資金流出なし" if m is None else f"{m:.1f}か月"
-
-
 def decide_phase(phase: Phase, monitor: Monitor, triage_declared: bool = False,
                  policy: PhasePolicy = DEFAULT_POLICY) -> PhaseDecision:
     """ラウンドの終わりに呼ぶ。フェーズは前にしか進まない。
@@ -547,7 +543,10 @@ def decide_phase(phase: Phase, monitor: Monitor, triage_declared: bool = False,
     gap = monitor.gap
     req = monitor.base.required_cf
     acc = monitor.accumulated_recovery_cf
-    nums = (f"必要CF {req:,}／回収CF累計 {acc:,}（年・千円）、残余月数 {_fmt_runway(monitor.cash_runway_months)}"
+    from core.metrics import net_after_improvement, runway_label
+
+    rw = runway_label(monitor.cash_runway_months, net_after_improvement(monitor), short=True)
+    nums = (f"必要CF {req:,}／回収CF累計 {acc:,}（年・千円）、残余月数 {rw}"
             if req is not None else "資金データ不足のため必要CFは判定できません")
 
     def d(nxt: Phase, rule: str, reason: str, stop: str | None = None) -> PhaseDecision:

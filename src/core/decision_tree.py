@@ -64,7 +64,7 @@ def build(state, mission: str | None = None) -> list[TreeNode]:
         mine = by_lever.get(lv, [])
         if not mine:
             status = "未着手"
-        elif any(p.status in ("審査通過・時期内", "一部のみ間に合う", "審査通過・時期外") for p in mine):
+        elif any(p.status in ("審査通過・時期内", "一部のみ間に合う", "審査通過・時期外", "減額採択") for p in mine):
             status = "通過あり"
         elif any(p.status == "審理中" for p in mine):
             status = "審理中"

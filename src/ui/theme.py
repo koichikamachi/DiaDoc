@@ -181,6 +181,10 @@ def inject() -> None:
   [data-testid="stColumn"]:has(.st-key-pane-right) {{ flex: 1 1 100% !important; min-width: 100% !important; }}
   [data-testid="stColumn"]:has(.st-key-pane-center) {{ order: -1; }}
 }}
+/* 意思決定ツリー：縮小表示では画面の高さに収める。実寸表示では枠の中でスクロールする */
+[class*="st-key-dd-tree-fit"] [data-testid="stGraphVizChart"] {{ max-height: 65vh; overflow: hidden; display: flex; justify-content: center; }}
+[class*="st-key-dd-tree-fit"] [data-testid="stGraphVizChart"] svg {{ max-width: 100% !important; max-height: 65vh !important; width: auto !important; height: auto !important; }}
+[class*="st-key-dd-tree-full"] [data-testid="stGraphVizChart"] {{ max-height: 75vh; overflow: auto; border: 1px solid rgba(128,128,128,.25); border-radius: 8px; }}
 /* ファイル選択枠：英語の「Upload」を「📁 ファイルを選択」に置き換える（押しても投入は確定しないことを明示） */
 [data-testid="stFileUploaderDropzone"] button [data-testid="stIconMaterial"] {{ display: none; }}
 [data-testid="stFileUploaderDropzone"] button [data-testid="stMarkdownContainer"] p {{ font-size: 0; line-height: 0; }}

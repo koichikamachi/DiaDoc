@@ -193,9 +193,11 @@ def proposals(state) -> list[ProposalStatus]:
         return []
     verdict = {}
     reasons = {}
+    adjusted = {}
     for r in state.rulings:
         verdict[r.message_id] = r.verdict
         reasons[r.message_id] = r.reasons[0] if r.reasons else ""
+        adjusted[r.message_id] = r.adjusted_bridges
     counted = {(c.message_id, id(c)): c for c in state.monitor.counted}
     by_msg: dict[str, list] = {}
     for c in counted.values():
@@ -207,7 +209,8 @@ def proposals(state) -> list[ProposalStatus]:
         v = verdict.get(m.id)
         cs = by_msg.get(m.id, [])
         lines = []
-        for i, b in enumerate(m.bridges):
+        shown = adjusted.get(m.id) if v == "通過" and adjusted.get(m.id) is not None else m.bridges
+        for i, b in enumerate(shown):
             in_time = cs[i].in_time if v == "通過" and i < len(cs) else None
             lines.append(BridgeLine(b.account, LABELS.get(b.account, b.account), b.direction, b.cf_effect,
                                     b.lead_months, b.recurring, in_time))
@@ -217,7 +220,9 @@ def proposals(state) -> list[ProposalStatus]:
             status, why = "棄却", reasons.get(m.id, "")
         else:
             flags = [x.in_time for x in lines if x.cf_effect > 0]
-            if flags and all(flags):
+            if adjusted.get(m.id) is not None:
+                status, why = "減額採択", reasons.get(m.id, "反論を受けて資金効果を減らして数える")
+            elif flags and all(flags):
                 status, why = "審査通過・時期内", "審査を通り、資金が尽きる前に効く（採用するかは人間が決める）"
             elif any(flags):
                 status, why = "一部のみ間に合う", "資金が尽きる前に効くのは一部だけ"
@@ -246,7 +251,8 @@ def bottlenecks(state, base) -> list[Bottleneck]:
         acc = m.accumulated_recovery_cf if m else 0
         rw = m.cash_runway_months if m else None
         out.append(Bottleneck("資金", f"返済後の資金収支が年{req:,}千円の不足。通過した改善で{acc:,}千円を埋め、"
-                                      f"残り{gap:,}千円" + ("" if rw is None else f"（残余約{rw:.1f}か月）")))
+                                      f"残り{gap:,}千円" + (f"（残余約{rw:.1f}か月）" if rw is not None else
+                                                          "（10年のうちに資金は尽きない：資金ショートリスク解消）" if m else "")))
     else:
         out.append(Bottleneck("資金", "返済後の資金収支はプラスで、資金の不足はない。争点は資金以外にある"))
     if state is None:
@@ -325,10 +331,12 @@ def run_summary(run) -> dict:
     if st is None:
         return head | {"診断ミッション": "—", "論争": "未開始"}
     m = st.monitor
-    rw0 = "流出なし" if m.base_runway_months is None else f"{m.base_runway_months:.1f}か月"
-    rw1 = "流出なし" if m.cash_runway_months is None else f"{m.cash_runway_months:.1f}か月"
+    from core.metrics import net_after_improvement, runway_label
+
+    rw0 = runway_label(m.base_runway_months, m.base.free_cf, short=True)
+    rw1 = runway_label(m.cash_runway_months, net_after_improvement(m), short=True)
     req = "—" if m.base.required_cf is None else f"{m.base.required_cf:,}"
-    cands = [p.title for p in proposals(st) if p.status in ("審査通過・時期内", "一部のみ間に合う")]
+    cands = [p.title for p in proposals(st) if p.status in ("審査通過・時期内", "一部のみ間に合う", "減額採択")]
     tri = triage(st)
     cmp_ = comparison(st)
     ways = "—"

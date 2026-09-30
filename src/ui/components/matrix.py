@@ -299,7 +299,7 @@ def _render_kpis(fin: Financials, mode: str, adj=()) -> None:
         cols[n % 4].metric(i.label, ind.fmt(i, v.cur), d, delta_color="off" if d else "normal", help=help_)
         if n % 4 == 3:
             cols = st.columns(4)
-    runway = "資金流出なし" if rw is None else f"{rw:.1f}か月"
+    runway = metrics.runway_label(rw, base.free_cf, short=True)
     cols[len(items) % 4].metric("残余月数（改善前）", runway,
                                 help="手元資金 ÷ 返済後の月間流出。\n\n" + "\n\n".join(base.basis))
     st.caption("全社共通：売上高・営業利益率・総資産・自己資本比率・有利子負債・手許現預金・営業利益ROA・残余月数。"

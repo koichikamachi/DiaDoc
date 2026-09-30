@@ -281,9 +281,23 @@ def _runway(funds: int, free_cf: int, bridges: list[CausalBridge]) -> float | No
         cash += sum(b.cf_effect for b in bridges if not b.recurring and b.lead_months == m)
         if cash < 0:
             return float(m)
-    if net >= 0:
-        return None
-    return HORIZON_MONTHS + cash / -net
+    # 追いかける上限（120か月＝10年）のうちに尽きなければ、資金ショートのリスクは解消したものとして扱う。
+    # 流出がわずかに残るとき、そのまま割り算で延ばすと「1.5万か月」のような意味のない数字になるため、ここで打ち切る
+    return None
+
+
+def runway_label(months: float | None, net_annual_cf: int | None = None, short: bool = False) -> str:
+    """残余月数の表示。上限（120か月）のうちに尽きないものは、流出があっても「資金ショートリスク解消」と出す。"""
+    if months is not None:
+        return f"{months:.1f}か月" if short else f"約{months:.1f}か月"
+    if net_annual_cf is not None and net_annual_cf < 0:
+        return "資金ショートリスク解消（10年超）" if not short else "リスク解消（10年超）"
+    return "資金流出なし"
+
+
+def net_after_improvement(m: Monitor) -> int | None:
+    """改善を反映した返済後の年間資金収支（間に合う恒常的な改善だけ）。"""
+    return None if m.base.free_cf is None else m.base.free_cf + m.accumulated_recovery_cf
 
 
 def project(base: CashBase, passed: list[tuple[str, CausalBridge]], stalemate_count: int = 0,

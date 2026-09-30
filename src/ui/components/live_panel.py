@@ -16,7 +16,7 @@ from state import DebateState
 
 STATUS = {
     "審査通過・時期内": ("ok", "✓"), "一部のみ間に合う": ("back", "◐"), "審査通過・時期外": ("muted", "…"),
-    "棄却": ("rej", "✕"), "審理中": ("muted", "○"),
+    "減額採択": ("back", "▽"), "棄却": ("rej", "✕"), "審理中": ("muted", "○"),
 }
 KPI_ACCOUNTS = {"売上高": {"sales"}, "営業利益率": {"sales", "lab", "mat", "exp"}, "手許現預金": {"cash"},
                 "借入残高": {"stl", "cltd", "ltd", "cls", "lls", "bond", "cbond"}}
@@ -39,7 +39,7 @@ def _kpis(fin: Financials, state: DebateState | None, base, adjustments=()) -> N
     except ValueError:
         roa_s = "—"
     mon = state.monitor if state else metrics.project(base, [])
-    rw = "流出なし" if mon.cash_runway_months is None else f"{mon.cash_runway_months:.1f}か月"
+    rw = metrics.runway_label(mon.cash_runway_months, metrics.net_after_improvement(mon), short=True)
     if mon.base_runway_months is not None and mon.cash_runway_months != mon.base_runway_months:
         rw_sub = f"改善前 {mon.base_runway_months:.1f}か月 → 通過した改善を反映"
     else:

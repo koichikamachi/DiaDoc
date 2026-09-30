@@ -81,10 +81,14 @@ def judge_note(rulings: list[Ruling], decision: PhaseDecision, summary: str, sta
                 if state.triage_declared or decision.rule == "triage_declared"
                 else "残った争点の決着には、各主張の決着条件に挙げたデータが必要です。")
         closing = f"論争を閉じます（止まった理由：{decision.stop_reason}）。{tail}"
+    last: dict[str, Ruling] = {}
+    for r in rulings:   # 同じ発言に審査と反論の見直しが重なったら、最後の判定で数える
+        last[r.message_id] = r
+    final = list(last.values())
     return JudgeNote(
-        tally={v: sum(1 for r in rulings if r.verdict == v) for v in ("通過", "差し戻し", "退け")},
-        sent_back=[f"{r.message_id}：{r.verdict}（{r.reasons[0] if r.reasons else ''}）" for r in rulings
-                   if r.verdict != "通過"],
+        tally={v: sum(1 for r in final if r.verdict == v) for v in ("通過", "差し戻し", "退け")},
+        sent_back=[f"{r.message_id}：{'減額採択' if r.reduced else r.verdict}（{r.reasons[0] if r.reasons else ''}）"
+                   for r in final if r.verdict != "通過" or r.reduced or r.by == "challenge"],
         required_cf=monitor.base.required_cf, accumulated=monitor.accumulated_recovery_cf, gap=monitor.gap,
         runway=monitor.cash_runway_months, stalemate=monitor.stalemate_count, summary=summary.strip(),
         decision=decision, closing=closing,
@@ -97,7 +101,9 @@ def judge_text(note: JudgeNote, state: DebateState) -> str:
     lines = [f"第{state.round}ラウンドの審理：通過{t['通過']}件、差し戻し{t['差し戻し']}件、退け{t['退け']}件。"]
     lines += [f"・{x}" for x in note.sent_back]
     req = "—" if note.required_cf is None else f"{note.required_cf:,}"
-    rw = "資金流出なし" if note.runway is None else f"約{note.runway:.1f}か月"
+    from core.metrics import runway_label
+
+    rw = runway_label(note.runway, None if note.required_cf is None else note.accumulated - note.required_cf)
     lines.append(f"資金の監視：必要CF 年{req}千円に対し回収CF累計 {note.accumulated:,}千円、残余月数 {rw}、膠着{note.stalemate}回。")
     if note.summary:
         lines.append(note.summary)
@@ -177,10 +183,14 @@ def build_graph(ctx: DebateContext, speaker: Speaker, policy: g.PhasePolicy = g.
             if c and VERDICT_RANK[c.verdict] > VERDICT_RANK[verdict]:   # 中身の審理は厳しくする方向にだけ効く
                 verdict, reasons = c.verdict, [f"中身の審理：{c.reason}"] + reasons
             new.append(Ruling(message_id=m.id, round=state.round, verdict=verdict, reasons=reasons))
+        from core.challenge import challenge_rulings
+
+        chal = challenge_rulings(state.messages, state.rulings + new, state.round)   # 反論による差し戻し・減額採択
+        new = new + chal
         rulings = state.rulings + new
         stalemate = g.update_stalemate(state.monitor.stalemate_count, state.round, state.messages, rulings)
         after = state.model_copy(update={"rulings": rulings})
-        monitor = project(state.monitor.base, after.passed_bridges(), stalemate, state.round)
+        monitor = project(state.monitor.base, after.passed_bridges(), stalemate, state.round - state.reopen_base)
         monitor = monitor.model_copy(update={"levers_tried": g.levers_tried(state.messages, rulings)})
         declared = state.triage_declared or any(
             r.verdict == "通過" and m.speaker == "rebuild" and m.action == "宣告"
@@ -343,6 +353,32 @@ class DebateSession:
         self.app.update_state(self.config, {"adopted_option": option, "adopted_note": note.strip(), "messages": [msg]},
                               as_node="judge")
 
+    def reopen(self, reason: str) -> DebateState:
+        """閉じた論争を、人間の求めで探索段階に戻す（充足・膠着・上限・宣告のどれで閉じた後でも）。
+
+        発言・判定・フェーズの履歴は消さずに積み上げる（再開そのものをフェーズの履歴と Judge の発言に残す）。
+        ラウンドの上限と膠着は、再開からの数で数え直す。宣告は取り消さず履歴に残るが、改めて宣告されるまで効かない。
+        """
+        self._guard()
+        st = self.state()
+        if st is None or not self.finished:
+            raise ValueError("再開できるのは、閉じた論争だけです")
+        nxt_round = st.round + 1
+        decision = PhaseDecision(round=st.round, current=st.phase, next="exploration", rule="reopened",
+                                 reason=f"人間の求めで論争を再開します（{reason}）。第{nxt_round}ラウンドから探索に戻ります",
+                                 stop_reason=None)
+        note = DebateMessage(at=stamp(), id=f"R{st.round}-judge-{len(st.messages) + 1}", round=st.round, phase=st.phase,
+                             speaker="judge", action="裁定",
+                             text=f"論争を再開します（前回の止まった理由：{st.stop_reason}）。{reason}。"
+                                  f"第{nxt_round}ラウンドから探索に戻り、新しい条件のもとで改めて審理します。",
+                             sources=[SourceRef(file="プログラムの判定", page="-")])
+        monitor = st.monitor.model_copy(update={"stalemate_count": 0, "rounds_completed": 0})
+        self.app.update_state(self.config, {
+            "messages": [note], "phase_history": [decision], "phase": "exploration", "triage_declared": False,
+            "stop_reason": None, "round": nxt_round, "next_speaker": "radar", "reopen_base": st.round,
+            "reopened": st.reopened + 1, "monitor": monitor}, as_node="judge")
+        return self.state()
+
     def set_mission(self, mission: str) -> None:
         """診断ミッションを変える。論争が始まった後の変更は、人間の介入として記録に残す。"""
         from schema import DebateMessage as _M
@@ -357,6 +393,9 @@ class DebateSession:
         st = self.state()
         if mission == st.mission:
             return
+        if self.finished:   # 閉じた後にミッションを変えたら、新しい目的で論争を再開する
+            self.reopen("診断ミッションの変更")
+            st = self.state()
         note = _M(at=stamp(), id=f"R{st.round}-human-{len(st.messages) + 1}", round=st.round, phase=st.phase, speaker="human",
                   action="介入", text=f"診断ミッションを「{st.mission}」から「{mission}」に変更しました")
         self.app.update_state(self.config, {"mission": mission, "messages": [note]})

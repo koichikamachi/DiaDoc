@@ -60,6 +60,9 @@ class AgentTurn(BaseModel):
     bridges: list[CausalBridge] = Field(default_factory=list)
     options: list[TriageOption] = Field(default_factory=list, description="トリアージ宣告のときだけ。三つの道")
     agenda_ops: list[AgendaOp] = Field(default_factory=list)
+    target_message: str | None = Field(default=None, description="攻撃・防御の相手の発言ID（例：R1-growth-2）。攻撃なら疑義を向けた提案、防御なら受けた攻撃")
+    challenged_account: str | None = Field(default=None, description="攻撃のとき：疑義を向けた因果ブリッジの科目キー（提案全体なら空）")
+    feasible_cf: int | None = Field(default=None, description="攻撃のとき：その科目（または提案全体）で現実的と見る資金効果（年・千円）。まったく見込めないなら0")
 
 
 class AssessmentOut(BaseModel):
@@ -190,15 +193,20 @@ def preview_monitor(state: DebateState) -> Monitor:
     return project(m.base, state.passed_bridges() + pending_bridges(state), m.stalemate_count, m.rounds_completed)
 
 
-def fmt_runway(m: float | None) -> str:
-    return "資金流出なし" if m is None else f"約{m:.1f}か月"
+def fmt_runway(m: float | None, net_annual_cf: int | None = None) -> str:
+    from core.metrics import runway_label
+
+    return runway_label(m, net_annual_cf)
 
 
 def monitor_values(m: Monitor) -> dict[str, str]:
     """台本やテンプレートに差し込む値（千円・カンマ区切り）。"""
     def n(v):
         return "—" if v is None else f"{v:,}"
-    return {"runway": fmt_runway(m.cash_runway_months), "base_runway": fmt_runway(m.base_runway_months),
+    from core.metrics import net_after_improvement
+
+    return {"runway": fmt_runway(m.cash_runway_months, net_after_improvement(m)),
+            "base_runway": fmt_runway(m.base_runway_months, m.base.free_cf),
             "required": n(m.base.required_cf), "acc": n(m.accumulated_recovery_cf), "gap": n(m.gap),
             "one_time": n(m.one_time_cash), "stalemate": str(m.stalemate_count)}
 
@@ -395,6 +403,8 @@ def to_message(turn: AgentTurn, state: DebateState, speaker: AgentId, ctx: Debat
         agenda_id=turn.agenda_id,
         target_node=turn.target_node, sources=sources, settle_condition=turn.settle_condition,
         bridges=[normalize_bridge(b) for b in turn.bridges], options=turn.options,
+        target_message=(turn.target_message or "").strip() or None,
+        challenged_account=(turn.challenged_account or "").strip() or None, feasible_cf=turn.feasible_cf,
     )
 
 
