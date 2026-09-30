@@ -300,10 +300,19 @@ def ensure_debt_request(run: Run) -> dict | None:
     fin = run.financials()
     if fin is None:
         return None
-    base = metrics.cash_base(fin)
+    from core import repayment
+
+    confirmed = repayment.load(run)
+    base = metrics.cash_base(fin, confirmed)
     requests = run.read("data_requests.json", [])
     cur = next((r for r in requests if r.get("kind") == "debt_schedule"), None)
     if base.debt_unverified:
+        if cur is not None and cur["status"] == "解消" and cur.get("resolved_how") == "人間が確定":
+            cur["status"] = "請求中"   # 確定を取り消したら、宿題に戻す
+            cur.pop("resolved_by", None)
+            cur.pop("resolved_how", None)
+            run.write("data_requests.json", requests)
+            return cur
         if cur is None:
             n = max((int(r["id"][1:]) for r in requests if re.fullmatch(r"R\d+", r.get("id", ""))), default=0) + 1
             cur = {"id": f"R{n}", **DEBT_REQUEST, "status": "請求中", "received": [],
@@ -311,10 +320,16 @@ def ensure_debt_request(run: Run) -> dict | None:
             run.write("data_requests.json", requests + [cur])
         return cur
     if cur is not None and cur["status"] != "解消":
-        keys = KIND_KEYS["debt_schedule"]
         cur["status"] = "解消"
-        cur["resolved_by"] = [{"key": k, "label": fin.items[k].label, "cur": fin.items[k].cur,
-                               "source": fin.items[k].source.model_dump()} for k in keys if k in fin.items]
+        if confirmed is not None:
+            cur["resolved_how"] = "人間が確定"
+            cur["resolved_by"] = [{"key": "repayment", "label": "年間約定返済額（人間が返済予定表で確定）",
+                                   "cur": confirmed.amount, "source": {"file": confirmed.basis, "page": None}}]
+        else:
+            keys = KIND_KEYS["debt_schedule"]
+            cur["resolved_how"] = "財務データ"
+            cur["resolved_by"] = [{"key": k, "label": fin.items[k].label, "cur": fin.items[k].cur,
+                                   "source": fin.items[k].source.model_dump()} for k in keys if k in fin.items]
         run.write("data_requests.json", requests)
     return cur
 
@@ -699,6 +714,11 @@ def report_markdown(run: Run) -> str:
     for r in requests:
         must = "【必須】" if r.get("required") else ""
         L.append(f"- {r['id']} {must}{r['item']}：{r['status']}　請求先：{r['request_to']}　解消する争点：{r['resolves']}")
+    from core import repayment
+
+    rp = repayment.load(run)
+    if rp is not None:
+        L += ["", "## 約定返済（人間が確定）", f"- {rp.describe()}　確定日時：{rp.at}（資金の監視はこの額で計算。決算書の数字は変えていない）"]
     L += ["", "## 制約・前提条件"]
     L += [f"- {c}" for c in cons["constraints"]] or ["- なし"]
     return "\n".join(L) + "\n"

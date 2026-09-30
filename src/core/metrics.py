@@ -226,7 +226,7 @@ def reference_text(base: CashBase) -> str:
             f"返済後CF {tri(base.ref_free_cf)}千円）")
 
 
-def cash_base(fin: Financials) -> CashBase:
+def cash_base(fin: Financials, repayment=None) -> CashBase:
     """改善案を反映する前の資金の姿（年額・千円）。
 
     簡易営業CF＝経常利益−法人税等＋減価償却費（特別損益は一回限りなので入れない）。
@@ -271,6 +271,11 @@ def cash_base(fin: Financials) -> CashBase:
         if bal and bal > 0 and fin.value(cur_key) is None:
             unverified.append(f"{label} {bal:,}千円に1年内返済の区分がない")
             unverified_total += bal
+    confirmed = ""
+    if repayment is not None:   # 人間が返済予定表で確定した年間の約定返済（core.repayment）。書類から求めた額に代えて使う
+        confirmed = (f"約定返済＝{repayment.amount:,}（人間が返済予定表で確定：{repayment.basis}。"
+                     f"書類から求めた額{debt:,}に代えて使う）")
+        debt, unverified, unverified_total = repayment.amount, [], 0
 
     if cash is None or ordinary is None:
         return CashBase(liquid_funds=cash, simple_cf=None, debt_service=debt, free_cf=None, required_cf=None,
@@ -288,6 +293,8 @@ def cash_base(fin: Financials) -> CashBase:
         repay = (f"約定返済＝{DEBT_DOUBT}（{'・'.join(unverified)}。書類で確かめられた返済は{debt:,}）"
                  f"　返済後収支＝{free:,}（確かめられない返済を0とした値。資金不足の有無は判定保留）"
                  f"　参考：{REFERENCE_YEARS}年均等返済なら年{ref_debt:,}、返済後{tri(ref_free)}")
+    elif confirmed:
+        repay = f"{confirmed}　返済後収支＝{free:,}"
     else:
         repay = f"約定返済＝{debt:,}　返済後収支＝{free:,}"
     basis = [f"手元資金＝現金預金 {cash:,}（{src('cash')}）",
@@ -295,7 +302,8 @@ def cash_base(fin: Financials) -> CashBase:
              repay] + basis + ["設備投資は含めていない（楽観側）"]
     return CashBase(liquid_funds=cash, simple_cf=simple, debt_service=debt, free_cf=free,
                     required_cf=max(0, -free), basis=basis, missing=missing,
-                    debt_unverified=unverified, ref_debt_service=ref_debt, ref_free_cf=ref_free)
+                    debt_unverified=unverified, ref_debt_service=ref_debt, ref_free_cf=ref_free,
+                    debt_confirmed=confirmed)
 
 
 def _floor1(m: float | None) -> float | None:

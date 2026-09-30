@@ -142,7 +142,9 @@ class DebateContext:
 
         meta = json.loads((company_dir(run.company) / "meta.json").read_text(encoding="utf-8"))
         fin = run.financials()
-        base = cash_base(fin) if fin else CashBase(liquid_funds=None, simple_cf=None, debt_service=None,
+        from core import repayment
+
+        base = cash_base(fin, repayment.load(run)) if fin else CashBase(liquid_funds=None, simple_cf=None, debt_service=None,
                                                    free_cf=None, required_cf=None, basis=["財務データがありません"])
         materials: dict[str, str] = {}
         chain, r = [], run

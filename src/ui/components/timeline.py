@@ -109,6 +109,8 @@ def _judge_body(m: DebateMessage) -> None:
             f'<span title="損益の改善による毎年の資金（ラン）">継続改善CF（年）<b>{n.accumulated:,}</b></span>'
             f'<span title="資産売却などの一回限りの資金（ショット）">一括調達（一時的資金）<b>{n.one_time:,}</b></span>'
             f'<span>不足<b>{gap}</b></span><span>残余月数<b>{rw}</b></span><span>膠着<b>{n.stalemate}回</b></span></div>')
+    if n.confirmed:
+        st.caption(":material/fact_check: " + n.confirmed)
     if pending:
         st.html(f'<div class="dd-phase"><b>資金不足の有無：判定保留（返済予定表の開示待ち）</b><br>'
                 f'{html.escape(n.pending)}<br>{html.escape(n.reference)}</div>')

@@ -257,9 +257,11 @@ def bottlenecks(state, base) -> list[Bottleneck]:
         from core.metrics import debt_doubt_text, reference_text
 
         out.append(Bottleneck("資金", f"資金不足の有無は判定保留（返済予定表の開示待ち）。{debt_doubt_text(base)}。"
-                                      f"{reference_text(base)}"))
+                                      f"{reference_text(base)}（返済予定表で確かめた年間返済額は、突合マトリクスの「約定返済額の確定」から入れられる）"))
     else:
         out.append(Bottleneck("資金", "返済後の資金収支はプラスで、資金の不足はない。争点は資金以外にある"))
+    if base.debt_confirmed:
+        out.append(Bottleneck("前提", base.debt_confirmed))
     if state is None:
         return out
     for p in proposals(state):

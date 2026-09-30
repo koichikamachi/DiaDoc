@@ -164,3 +164,92 @@ def test_cockpit_shows_pending_instead_of_no_outflow(data):
     html_ = " ".join(str(h.proto.body) for h in at.get("html")) + " ".join(m.value for m in at.markdown)
     assert "判定保留" in html_ and "△5,370" in html_ and "一括調達（一時的資金）" in html_
     assert "返済後の資金収支はプラスで、資金の不足はない" not in html_
+
+
+# ---------------------------------------------------------------------------
+# 約定返済額の確定（返済予定表を見た人が年間返済額を入れる）
+# ---------------------------------------------------------------------------
+def _pending_run():
+    company = create_company("丁工業", fictional=True)
+    run, _, _ = handle_upload(company, "丁.xlsx", b"x", extractor=_Fixed(_lines(sga_reported=49_800)))
+    return run
+
+
+def test_confirmed_repayment_lifts_the_pending_judgement(data):
+    from core import repayment
+
+    run = _pending_run()
+    assert repayment.cash_base_for(run).shortage_pending
+    rec = repayment.confirm(run, 6_000, "〇〇銀行の返済予定表を確認（毎月元金500）")
+    b = repayment.cash_base_for(run)
+    assert not b.shortage_pending and not b.debt_unverified
+    assert (b.debt_service, b.free_cf, b.required_cf) == (6_000, 630 - 6_000, 5_370)
+    assert "人間が返済予定表で確定" in b.debt_confirmed and any("〇〇銀行" in x for x in b.basis)
+    log = run.read("audit_log.json")[-1]
+    assert log["actor"] == "人間（ライム）" and log["action"] == "約定返済額の確定（年間 6,000千円）"
+    assert "約定返済額を確定します：年間約定返済額 6,000千円" in repayment.intervention_text(rec)
+    assert run.financials().value("cltd") is None                                  # 決算書の数字は変えない
+
+
+def test_confirmation_needs_a_basis_and_a_sane_amount(data):
+    from core import repayment
+
+    run = _pending_run()
+    for amount, basis in ((6_000, "  "), (-1, "予定表"), (10**10, "予定表")):
+        with pytest.raises(ValueError):
+            repayment.confirm(run, amount, basis)
+    assert repayment.load(run) is None
+
+
+def test_confirmation_resolves_the_homework_and_withdrawal_reopens_it(data):
+    from core import repayment
+
+    run = _pending_run()
+    repayment.confirm(run, 6_000, "返済予定表を確認")
+    r = ensure_debt_request(run)
+    assert r["status"] == "解消" and r["resolved_how"] == "人間が確定" and r["resolved_by"][0]["cur"] == 6_000
+    assert "## 約定返済（人間が確定）" in report_markdown(run)
+    assert repayment.withdraw(run).amount == 6_000
+    assert repayment.load(run) is None and repayment.cash_base_for(run).shortage_pending
+    r = ensure_debt_request(run)
+    assert r["status"] == "請求中" and "resolved_by" not in r
+    assert len([x for x in run.read("data_requests.json") if x.get("kind") == "debt_schedule"]) == 1
+
+
+def test_confirmed_repayment_drives_the_debate_monitor(data):
+    from core import repayment
+    from core.graph import DebateSession
+    from core.runs import latest_run
+
+    run = _pending_run()
+    repayment.confirm(run, 6_000, "返済予定表を確認")
+    s = DebateSession(latest_run(run.company))
+    s.run_round()
+    note = s.state().messages[-1].judge_note
+    assert not note.pending and note.required_cf == 5_370 and "人間が返済予定表で確定" in note.confirmed
+    assert "判定保留" not in s.state().messages[-1].text
+
+
+def test_confirmation_from_the_matrix_screen(data):
+    from streamlit.testing.v1 import AppTest
+
+    from core import repayment
+    from core.runs import latest_run
+
+    run = _pending_run()
+    at = AppTest.from_file(str(ROOT / "src/ui/app.py"), default_timeout=30)
+    at.run()
+    at.selectbox(key="company").set_value(run.company).run()
+    at.number_input(key="repay_amount").set_value(6_000)
+    at.text_input(key="repay_basis").input("〇〇銀行の返済予定表を確認")
+    at.button(key="FormSubmitter:repay_form-約定返済額を確定して論争に伝える").click().run()
+    assert not at.exception, at.exception
+    run = latest_run(run.company)
+    assert repayment.load(run).amount == 6_000
+    assert [r for r in run.read("data_requests.json") if r.get("kind") == "debt_schedule"][0]["status"] == "解消"
+    from core.graph import DebateSession
+
+    msgs = DebateSession(run).state().messages
+    assert msgs and msgs[0].speaker == "human" and "約定返済額を確定します" in msgs[0].text
+    html_ = " ".join(str(h.proto.body) for h in at.get("html"))
+    assert "判定保留" not in html_                                                   # 右の欄もすぐ切り替わる

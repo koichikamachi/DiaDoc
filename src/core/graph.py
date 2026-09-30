@@ -92,7 +92,8 @@ def judge_note(rulings: list[Ruling], decision: PhaseDecision, summary: str, sta
         required_cf=monitor.base.required_cf, accumulated=monitor.accumulated_recovery_cf, gap=monitor.gap,
         runway=monitor.cash_runway_months, stalemate=monitor.stalemate_count, one_time=monitor.one_time_cash,
         pending=debt_doubt_text(monitor.base) if monitor.base.shortage_pending else "",
-        reference=reference_text(monitor.base) if monitor.base.shortage_pending else "", summary=summary.strip(),
+        reference=reference_text(monitor.base) if monitor.base.shortage_pending else "",
+        confirmed=monitor.base.debt_confirmed, summary=summary.strip(),
         decision=decision, closing=closing,
     )
 
@@ -115,6 +116,8 @@ def judge_text(note: JudgeNote, state: DebateState) -> str:
     lines.append(f"一括調達（一時的資金）：{note.one_time:,}千円（資産売却など一回限りの資金。継続改善CFには数えない）。")
     if note.pending:
         lines.append(f"{note.pending}。{note.reference}。")
+    if note.confirmed:
+        lines.append(note.confirmed + "。")
     if note.summary:
         lines.append(note.summary)
     d = note.decision

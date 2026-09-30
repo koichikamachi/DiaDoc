@@ -200,6 +200,50 @@ def _render_adjustments(fin: Financials, run, session, adj: list) -> None:
                 st.rerun()
 
 
+def _render_repayment(fin: Financials, run, session) -> None:
+    """約定返済額の確定（年間返済額の手動入力）。決算書から約定返済が確かめられないときに、返済予定表を見て入れる。"""
+    from core import repayment
+
+    cur = repayment.load(run) if run is not None else None
+    doubt = metrics.cash_base(fin).debt_unverified   # 確定の前に、書類だけで確かめられないもの
+    if not doubt and cur is None:
+        return
+    st.markdown("##### 約定返済額の確定（年間返済額の手動入力）")
+    if doubt:
+        st.caption("決算書から約定返済を確かめられません（" + "・".join(doubt) + "）。資金不足の有無は判定保留です。"
+                   "返済予定表（金銭消費貸借契約書）で確かめた年間の約定返済額を入れると、資金の監視をその額で計算し直し、"
+                   "判定保留を解除します。決算書の数字は変えません。")
+    if cur is not None:
+        c1, c2 = st.columns([5, 1])
+        c1.markdown(f"- 〔確定済み〕{cur.describe()}　{cur.at}")
+        if run is not None and not run.frozen and cur.run_id == run.run_id \
+                and c2.button("取り消す", key="repay_del", type="tertiary"):
+            gone = repayment.withdraw(run)
+            if gone is not None:
+                _tell_debate(session, repayment.intervention_text(gone, removed=True))
+            st.rerun()
+    if run is None or run.frozen:
+        return
+    with st.form("repay_form", clear_on_submit=True, border=True):
+        st.markdown("**約定返済額を確定する（介入）**" if cur is None else "**確定額を入れ直す（介入）**")
+        amount = st.number_input("年間約定返済額（千円。長期借入金・社債・リース債務の1年分の合計）", min_value=0,
+                                 step=100, value=0, key="repay_amount")
+        basis = st.text_input("根拠（例：〇〇銀行・△△信金の返済予定表を確認。毎月元金 834千円）", key="repay_basis")
+        if st.form_submit_button("約定返済額を確定して論争に伝える", type="primary"):
+            try:
+                rec = repayment.confirm(run, int(amount), basis)
+            except ValueError as e:
+                st.error(str(e))
+            else:
+                mid = _tell_debate(session, repayment.intervention_text(rec))
+                if mid:
+                    repayment.set_message_id(run, mid)
+                from core.mock_engine import ensure_debt_request
+
+                ensure_debt_request(run)
+                st.rerun()
+
+
 def _tell_debate(session, text: str) -> str | None:
     """調整を論争のタイムラインに介入として書き込み、担当者の文脈を更新する。"""
     if session is None:
@@ -207,7 +251,11 @@ def _tell_debate(session, text: str) -> str | None:
     from core import adjust
     from core.interrupt import intervene
 
+    from core import repayment
+
     session.ctx.adjustments = adjust.load(session.run)
+    if session.ctx.fin is not None:   # 確定した約定返済で資金の基礎値を計算し直す（次の裁定から監視指標に効く）
+        session.ctx.base = repayment.cash_base_for(session.run, session.ctx.fin)
     try:
         return intervene(session, text).id
     except Exception:          # 凍結された回次など。調整そのものは保存済み
@@ -283,16 +331,22 @@ def _render_requests(requests: list[dict]) -> None:
             st.markdown(f"**{r['id']}　{r['item']}**　:{color}-badge[{label}]{must}")
             st.caption(f"担当：Analyst Radar　請求先：{r['request_to']}")
             st.caption(f"解消する争点：{r['resolves']}")
-            if r.get("note"):
+            if r.get("note") and r["status"] != "解消":
                 st.caption(r["note"])
+            for v in r.get("resolved_by", []) if r["status"] == "解消" else []:
+                src = v.get("source") or {}
+                where = src.get("file") or ""
+                st.caption(f":material/check_circle: 解消：{v['label']} {v['cur']:,}千円（{where}）")
             for rec in r.get("received", []):
                 st.caption(f":material/attach_file: {rec['file']}（{rec['run']}）")
 
 
-def _render_kpis(fin: Financials, mode: str, adj=()) -> None:
+def _render_kpis(fin: Financials, mode: str, adj=(), run=None) -> None:
     """全社共通の指標と、条件を満たすときだけの会社固有の指標。各指標に計算式・前期比・出典頁を添える。"""
+    from core import repayment
+
     items = ind.kpis(fin)
-    base = metrics.cash_base(fin)
+    base = metrics.cash_base(fin, repayment.load(run) if run is not None else None)
     rw = metrics.project(base, []).cash_runway_months
     cols = st.columns(4)
     for n, i in enumerate(items):
@@ -330,7 +384,7 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
     st.markdown(f"##### 表示モード：{mode_name}")
     st.caption(bs["注記"])
 
-    _render_kpis(fin, mode, adj)
+    _render_kpis(fin, mode, adj, run)
 
     st.divider()
     left, right = st.columns([3, 2], gap="large")
@@ -357,6 +411,7 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
         st.plotly_chart(_bs_chart(fin, adj), width="stretch", theme="streamlit")
         st.caption(_bs_caption(fin, adj))
         _render_adjustments(fin, run, session, adj)
+        _render_repayment(fin, run, session)
     with right:
         if report is not None:
             _render_recon(report, fin, source_label)

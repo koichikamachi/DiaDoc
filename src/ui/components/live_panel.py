@@ -73,7 +73,8 @@ def _bottlenecks(state: DebateState | None, base) -> None:
         items = digest.bottlenecks(state, base)
         cls = {"資金": "fin", "時期": "calc", "根拠": "misc", "前提": "qual"}
         st.html('<ul class="dd-bn">' + "".join(
-            f'<li><span class="dd-tag dd-tag-{cls[b.kind]}">{b.kind}</span>{html.escape(_clip(b.text))}</li>'
+            f'<li><span class="dd-tag dd-tag-{cls[b.kind]}">{b.kind}</span>'
+            f'{html.escape(_clip(b.text, 200 if b.kind == "資金" else 70))}</li>'
             for b in items) + "</ul>")
 
 
@@ -127,6 +128,11 @@ def render(fin: Financials | None, state: DebateState | None, base, adjustments=
     if fin is None:
         st.info("財務データがありません")
         return
+    if state is not None and state.monitor.base.model_dump() != base.model_dump():
+        # 資金の基礎値が変わった（約定返済の確定など）。次の裁定を待たずに、通過済みの改善で監視指標を計算し直して見せる
+        m = state.monitor
+        mon = metrics.project(base, state.passed_bridges(), m.stalemate_count, m.rounds_completed)
+        state = state.model_copy(update={"monitor": mon.model_copy(update={"levers_tried": m.levers_tried})})
     _kpis(fin, state, base, adjustments)
     _bottlenecks(state, base)
     _statuses(state)
