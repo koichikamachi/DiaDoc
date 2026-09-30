@@ -39,8 +39,11 @@ def _kpis(fin: Financials, state: DebateState | None, base, adjustments=()) -> N
     except ValueError:
         roa_s = "—"
     mon = state.monitor if state else metrics.project(base, [])
-    rw = metrics.runway_label(mon.cash_runway_months, metrics.net_after_improvement(mon), short=True)
-    if mon.base_runway_months is not None and mon.cash_runway_months != mon.base_runway_months:
+    pending = base.shortage_pending   # base はいまの財務データから計算したもの（約定返済の確認状況を含む）
+    rw = metrics.runway_label(mon.cash_runway_months, metrics.net_after_improvement(mon), short=True, pending=pending)
+    if pending:
+        rw_sub = "約定返済が未確認（返済予定表待ち）"
+    elif mon.base_runway_months is not None and mon.cash_runway_months != mon.base_runway_months:
         rw_sub = f"改善前 {mon.base_runway_months:.1f}か月 → 通過した改善を反映"
     else:
         rw_sub = "手元資金÷返済後の月間流出"

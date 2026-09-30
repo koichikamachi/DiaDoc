@@ -23,7 +23,7 @@ from agents.rebuild import Rebuild
 from agents.research import Radar
 from agents.speakers import default_speaker
 from core import guardrails as g
-from core.metrics import project
+from core.metrics import debt_doubt_text, project, reference_text
 from schema import DebateMessage, JudgeNote, OptionAssessment, PhaseDecision, ReviewResult, Ruling, SourceRef, stamp
 from state import DebateState, checkpoint_types, initial_state
 
@@ -90,7 +90,9 @@ def judge_note(rulings: list[Ruling], decision: PhaseDecision, summary: str, sta
         sent_back=[f"{r.message_id}：{'減額採択' if r.reduced else r.verdict}（{r.reasons[0] if r.reasons else ''}）"
                    for r in final if r.verdict != "通過" or r.reduced or r.by == "challenge"],
         required_cf=monitor.base.required_cf, accumulated=monitor.accumulated_recovery_cf, gap=monitor.gap,
-        runway=monitor.cash_runway_months, stalemate=monitor.stalemate_count, summary=summary.strip(),
+        runway=monitor.cash_runway_months, stalemate=monitor.stalemate_count, one_time=monitor.one_time_cash,
+        pending=debt_doubt_text(monitor.base) if monitor.base.shortage_pending else "",
+        reference=reference_text(monitor.base) if monitor.base.shortage_pending else "", summary=summary.strip(),
         decision=decision, closing=closing,
     )
 
@@ -100,11 +102,19 @@ def judge_text(note: JudgeNote, state: DebateState) -> str:
     t = note.tally
     lines = [f"第{state.round}ラウンドの審理：通過{t['通過']}件、差し戻し{t['差し戻し']}件、退け{t['退け']}件。"]
     lines += [f"・{x}" for x in note.sent_back]
-    req = "—" if note.required_cf is None else f"{note.required_cf:,}"
-    from core.metrics import runway_label
+    from core.metrics import PENDING_LABEL, runway_label
 
-    rw = runway_label(note.runway, None if note.required_cf is None else note.accumulated - note.required_cf)
-    lines.append(f"資金の監視：必要CF 年{req}千円に対し回収CF累計 {note.accumulated:,}千円、残余月数 {rw}、膠着{note.stalemate}回。")
+    rw = runway_label(note.runway, None if note.required_cf is None else note.accumulated - note.required_cf,
+                      pending=bool(note.pending))
+    if note.pending:
+        req = PENDING_LABEL
+    else:
+        req = "年—千円" if note.required_cf is None else f"年{note.required_cf:,}千円"
+    lines.append(f"資金の監視：必要CF {req}に対し継続改善CF（回収CF累計・年）{note.accumulated:,}千円、"
+                 f"残余月数 {rw}、膠着{note.stalemate}回。")
+    lines.append(f"一括調達（一時的資金）：{note.one_time:,}千円（資産売却など一回限りの資金。継続改善CFには数えない）。")
+    if note.pending:
+        lines.append(f"{note.pending}。{note.reference}。")
     if note.summary:
         lines.append(note.summary)
     d = note.decision
@@ -190,7 +200,9 @@ def build_graph(ctx: DebateContext, speaker: Speaker, policy: g.PhasePolicy = g.
         rulings = state.rulings + new
         stalemate = g.update_stalemate(state.monitor.stalemate_count, state.round, state.messages, rulings)
         after = state.model_copy(update={"rulings": rulings})
-        monitor = project(state.monitor.base, after.passed_bridges(), stalemate, state.round - state.reopen_base)
+        # 資金の基礎値は、いまの財務データから計算し直したものを使う（返済予定表などで財務データが補われたら反映する）
+        base = ctx.base if ctx.fin is not None else state.monitor.base
+        monitor = project(base, after.passed_bridges(), stalemate, state.round - state.reopen_base)
         monitor = monitor.model_copy(update={"levers_tried": g.levers_tried(state.messages, rulings)})
         declared = state.triage_declared or any(
             r.verdict == "通過" and m.speaker == "rebuild" and m.action == "宣告"

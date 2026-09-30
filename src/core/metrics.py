@@ -198,6 +198,32 @@ def company_ratios(fin: Financials, mode: str) -> dict[str, float]:
 DEBT_SERVICE_KEYS = ("cltd", "cbond", "cls")   # 1年以内の約定返済（長期借入金・社債・リース債務）
 DEPRECIATION_KEYS = ("e_dep", "sga_dep")      # 製造原価と販管費の減価償却費
 HORIZON_MONTHS = 120                          # 残余月数を追いかける上限
+# 長期の残高と、その1年内返済の区分。長期の残高があるのに区分の行がなければ、約定返済は書類から確かめられない
+# （中小企業の決算書は1年内返済分を分けずに全額を長期に載せることが多い。行がない＝返済がない、ではない）
+LONG_TERM_PAIRS = (("ltd", "cltd", "長期借入金"), ("bond", "cbond", "社債"), ("lls", "cls", "リース債務"))
+REFERENCE_YEARS = 10                          # 参考試算：確かめられない残高を何年の均等返済とみるか
+PENDING_LABEL = "判定保留（返済予定表の開示待ち）"
+DEBT_DOUBT = "BS記載に疑問あり、確認が必要"
+
+
+def tri(v: int) -> str:
+    """千円の額。マイナスは△で書く（決算書の書き方）。"""
+    return f"△{abs(v):,}" if v < 0 else f"{v:,}"
+
+
+def debt_doubt_text(base: CashBase) -> str:
+    """約定返済が確かめられないことの説明（なければ空）。"""
+    if not base.debt_unverified:
+        return ""
+    return f"約定返済：{DEBT_DOUBT}（{'・'.join(base.debt_unverified)}）"
+
+
+def reference_text(base: CashBase) -> str:
+    """判定保留のときに並べる参考試算（なければ空）。"""
+    if base.ref_debt_service is None or base.ref_free_cf is None:
+        return ""
+    return (f"参考試算（例：{REFERENCE_YEARS}年均等返済なら年{base.ref_debt_service:,}千円、"
+            f"返済後CF {tri(base.ref_free_cf)}千円）")
 
 
 def cash_base(fin: Financials) -> CashBase:
@@ -238,6 +264,13 @@ def cash_base(fin: Financials) -> CashBase:
         if v is not None:
             debt += v
             basis.append(f"{k}＝{v:,}（{src(k)}）")
+    unverified: list[str] = []
+    unverified_total = 0
+    for long_key, cur_key, label in LONG_TERM_PAIRS:
+        bal = fin.value(long_key)
+        if bal and bal > 0 and fin.value(cur_key) is None:
+            unverified.append(f"{label} {bal:,}千円に1年内返済の区分がない")
+            unverified_total += bal
 
     if cash is None or ordinary is None:
         return CashBase(liquid_funds=cash, simple_cf=None, debt_service=debt, free_cf=None, required_cf=None,
@@ -248,11 +281,21 @@ def cash_base(fin: Financials) -> CashBase:
                      "金融機関が応じなければ、その額がただちに不足する")
     simple = ordinary - ctx + dep
     free = simple - debt
+    ref_debt = ref_free = None
+    if unverified:
+        ref_debt = debt + unverified_total // REFERENCE_YEARS
+        ref_free = simple - ref_debt
+        repay = (f"約定返済＝{DEBT_DOUBT}（{'・'.join(unverified)}。書類で確かめられた返済は{debt:,}）"
+                 f"　返済後収支＝{free:,}（確かめられない返済を0とした値。資金不足の有無は判定保留）"
+                 f"　参考：{REFERENCE_YEARS}年均等返済なら年{ref_debt:,}、返済後{tri(ref_free)}")
+    else:
+        repay = f"約定返済＝{debt:,}　返済後収支＝{free:,}"
     basis = [f"手元資金＝現金預金 {cash:,}（{src('cash')}）",
              f"簡易営業CF＝経常利益 {ordinary:,}（{src('ord')}）−法人税等 {ctx:,}＋減価償却費 {dep:,}＝{simple:,}",
-             f"約定返済＝{debt:,}　返済後収支＝{free:,}"] + basis + ["設備投資は含めていない（楽観側）"]
+             repay] + basis + ["設備投資は含めていない（楽観側）"]
     return CashBase(liquid_funds=cash, simple_cf=simple, debt_service=debt, free_cf=free,
-                    required_cf=max(0, -free), basis=basis, missing=missing)
+                    required_cf=max(0, -free), basis=basis, missing=missing,
+                    debt_unverified=unverified, ref_debt_service=ref_debt, ref_free_cf=ref_free)
 
 
 def _floor1(m: float | None) -> float | None:
@@ -286,8 +329,12 @@ def _runway(funds: int, free_cf: int, bridges: list[CausalBridge]) -> float | No
     return None
 
 
-def runway_label(months: float | None, net_annual_cf: int | None = None, short: bool = False) -> str:
-    """残余月数の表示。上限（120か月）のうちに尽きないものは、流出があっても「資金ショートリスク解消」と出す。"""
+def runway_label(months: float | None, net_annual_cf: int | None = None, short: bool = False,
+                 pending: bool = False) -> str:
+    """残余月数の表示。上限（120か月）のうちに尽きないものは、流出があっても「資金ショートリスク解消」と出す。
+    pending（約定返済が確かめられず、資金不足の有無を判定保留にしている）なら「資金流出なし」とは言い切らない。"""
+    if months is None and pending:
+        return "判定保留" if short else "判定保留（約定返済が未確認）"
     if months is not None:
         return f"{months:.1f}か月" if short else f"約{months:.1f}か月"
     if net_annual_cf is not None and net_annual_cf < 0:

@@ -279,9 +279,12 @@ def _render_requests(requests: list[dict]) -> None:
     for r in requests:
         color, label = md.REQUEST_BADGE.get(r["status"], ("gray", r["status"]))
         with st.container(border=True):
-            st.markdown(f"**{r['id']}　{r['item']}**　:{color}-badge[{label}]")
+            must = "　:red-badge[必須]" if r.get("required") else ""
+            st.markdown(f"**{r['id']}　{r['item']}**　:{color}-badge[{label}]{must}")
             st.caption(f"担当：Analyst Radar　請求先：{r['request_to']}")
             st.caption(f"解消する争点：{r['resolves']}")
+            if r.get("note"):
+                st.caption(r["note"])
             for rec in r.get("received", []):
                 st.caption(f":material/attach_file: {rec['file']}（{rec['run']}）")
 
@@ -299,7 +302,7 @@ def _render_kpis(fin: Financials, mode: str, adj=()) -> None:
         cols[n % 4].metric(i.label, ind.fmt(i, v.cur), d, delta_color="off" if d else "normal", help=help_)
         if n % 4 == 3:
             cols = st.columns(4)
-    runway = metrics.runway_label(rw, base.free_cf, short=True)
+    runway = metrics.runway_label(rw, base.free_cf, short=True, pending=base.shortage_pending)
     cols[len(items) % 4].metric("残余月数（改善前）", runway,
                                 help="手元資金 ÷ 返済後の月間流出。\n\n" + "\n\n".join(base.basis))
     st.caption("全社共通：売上高・営業利益率・総資産・自己資本比率・有利子負債・手許現預金・営業利益ROA・残余月数。"

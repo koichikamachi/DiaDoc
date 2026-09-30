@@ -253,6 +253,11 @@ def bottlenecks(state, base) -> list[Bottleneck]:
         out.append(Bottleneck("資金", f"返済後の資金収支が年{req:,}千円の不足。通過した改善で{acc:,}千円を埋め、"
                                       f"残り{gap:,}千円" + (f"（残余約{rw:.1f}か月）" if rw is not None else
                                                           "（10年のうちに資金は尽きない：資金ショートリスク解消）" if m else "")))
+    elif base.shortage_pending:
+        from core.metrics import debt_doubt_text, reference_text
+
+        out.append(Bottleneck("資金", f"資金不足の有無は判定保留（返済予定表の開示待ち）。{debt_doubt_text(base)}。"
+                                      f"{reference_text(base)}"))
     else:
         out.append(Bottleneck("資金", "返済後の資金収支はプラスで、資金の不足はない。争点は資金以外にある"))
     if state is None:
@@ -333,9 +338,10 @@ def run_summary(run) -> dict:
     m = st.monitor
     from core.metrics import net_after_improvement, runway_label
 
-    rw0 = runway_label(m.base_runway_months, m.base.free_cf, short=True)
-    rw1 = runway_label(m.cash_runway_months, net_after_improvement(m), short=True)
-    req = "—" if m.base.required_cf is None else f"{m.base.required_cf:,}"
+    pend = m.base.shortage_pending
+    rw0 = runway_label(m.base_runway_months, m.base.free_cf, short=True, pending=pend)
+    rw1 = runway_label(m.cash_runway_months, net_after_improvement(m), short=True, pending=pend)
+    req = "判定保留" if pend else ("—" if m.base.required_cf is None else f"{m.base.required_cf:,}")
     cands = [p.title for p in proposals(st) if p.status in ("審査通過・時期内", "一部のみ間に合う", "減額採択")]
     tri = triage(st)
     cmp_ = comparison(st)
@@ -351,7 +357,8 @@ def run_summary(run) -> dict:
         "最終フェーズ": PHASE_LABEL.get(st.phase, st.phase) + (f"（{st.stop_reason}）" if st.stop_reason else "（進行中）"),
         "残余月数": f"{rw0} → {rw1}",
         "回収CF累計／必要CF（年・千円）": f"{m.accumulated_recovery_cf:,}／{req}",
-        "残りの不足（年・千円）": "—" if m.gap is None else f"{m.gap:,}",
+        "残りの不足（年・千円）": "判定保留" if pend else ("—" if m.gap is None else f"{m.gap:,}"),
+        "一括調達（一時的資金・千円）": f"{m.one_time_cash:,}",
         "審査通過・時期内の改善案": "／".join(cands) or "なし",
         "宣告された道（Level 0）": ways,
         "採択された方針": st.adopted_option + (f"（{st.adopted_note}）" if st.adopted_note else "")
@@ -360,7 +367,7 @@ def run_summary(run) -> dict:
 
 
 COMPARE_ROWS = ("回次", "状態", "診断ミッション", "論争", "試した改善レバー", "最終フェーズ", "残余月数",
-                "回収CF累計／必要CF（年・千円）", "残りの不足（年・千円）", "審査通過・時期内の改善案", "宣告された道（Level 0）",
+                "回収CF累計／必要CF（年・千円）", "残りの不足（年・千円）", "一括調達（一時的資金・千円）", "審査通過・時期内の改善案", "宣告された道（Level 0）",
                 "採択された方針")
 
 

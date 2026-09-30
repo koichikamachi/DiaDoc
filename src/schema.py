@@ -348,10 +348,20 @@ class CashBase(BaseModel):
     required_cf: int | None            # 必要CF（年）＝返済後収支の不足額。不足なしなら0
     basis: list[str] = Field(default_factory=list)    # 計算の根拠（式と出典）
     missing: list[str] = Field(default_factory=list)  # 取得できなかった科目
+    # 約定返済が書類から確かめられないもの（長期の残高はあるのに1年内返済の区分がない）。例：「長期借入金 100,000」
+    debt_unverified: list[str] = Field(default_factory=list)
+    ref_debt_service: int | None = None   # 参考試算：確かめられない残高を10年均等で返すと仮定した年間の返済（既知の返済を含む）
+    ref_free_cf: int | None = None        # 参考試算：そのときの返済後の資金収支（年）
 
     @property
     def complete(self) -> bool:
         return self.required_cf is not None
+
+    @property
+    def shortage_pending(self) -> bool:
+        """資金不足の有無を判定保留にするか。返済0とみなしても不足が出ていないのに、約定返済が確かめられないとき。
+        （0とみなしても不足なら、返済を入れれば不足はさらに大きいので、不足は確かである）"""
+        return bool(self.debt_unverified) and self.free_cf is not None and self.free_cf >= 0
 
 
 class CountedBridge(BaseModel):
@@ -406,6 +416,9 @@ class JudgeNote(BaseModel):
     gap: int | None = None
     runway: float | None = None
     stalemate: int = 0
+    one_time: int = 0                                       # 一括調達（一時的資金）：資産売却などの一回限りの資金
+    pending: str = ""                                       # 資金不足の有無を判定保留にしている理由（なければ空）
+    reference: str = ""                                     # 判定保留のときの参考試算
     summary: str = ""                                       # Judge（LLM）の論点整理
     decision: PhaseDecision | None = None
     closing: str = ""                                       # 論争を閉じるときの一文

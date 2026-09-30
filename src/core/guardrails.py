@@ -543,11 +543,17 @@ def decide_phase(phase: Phase, monitor: Monitor, triage_declared: bool = False,
     gap = monitor.gap
     req = monitor.base.required_cf
     acc = monitor.accumulated_recovery_cf
-    from core.metrics import net_after_improvement, runway_label
+    from core.metrics import PENDING_LABEL, debt_doubt_text, net_after_improvement, reference_text, runway_label
 
-    rw = runway_label(monitor.cash_runway_months, net_after_improvement(monitor), short=True)
-    nums = (f"必要CF {req:,}／回収CF累計 {acc:,}（年・千円）、残余月数 {rw}"
-            if req is not None else "資金データ不足のため必要CFは判定できません")
+    pending = monitor.base.shortage_pending
+    rw = runway_label(monitor.cash_runway_months, net_after_improvement(monitor), short=True, pending=pending)
+    if req is None:
+        nums = "資金データ不足のため必要CFは判定できません"
+    elif pending:
+        nums = (f"必要CF {PENDING_LABEL}／回収CF累計 {acc:,}（年・千円）、残余月数 {rw}。"
+                f"{debt_doubt_text(monitor.base)}。{reference_text(monitor.base)}")
+    else:
+        nums = f"必要CF {req:,}／回収CF累計 {acc:,}（年・千円）、残余月数 {rw}"
 
     def d(nxt: Phase, rule: str, reason: str, stop: str | None = None) -> PhaseDecision:
         assert PHASE_ORDER.index(nxt) >= PHASE_ORDER.index(phase), "フェーズは後戻りしない"
@@ -582,6 +588,13 @@ def decide_phase(phase: Phase, monitor: Monitor, triage_declared: bool = False,
                  f"必要CFに{gap:,}千円届きませんが、まだ引いていない改善レバーがあります：{'・'.join(missing)}。探索を続けます")
     if gap is not None and req > 0 and gap == 0:
         return d("settlement", "gap_closed", "通過した改善案で必要CFを満たしました", "改善策で充足")
+    held = ("約定返済が書類から確かめられないため、資金不足の有無は判定保留です"
+            "（トリアージ不要とは確定しません。借入金返済予定表で決まります）")
+    if pending and monitor.stalemate_count >= policy.stalemate_limit:
+        return d("settlement", "stalemate_pending", f"議論が{monitor.stalemate_count}回続けて膠着しました。{held}",
+                 PENDING_LABEL)
+    if pending and r >= policy.max_rounds:
+        return d("settlement", "max_rounds_pending", f"上限の{policy.max_rounds}ラウンドに達しました。{held}", PENDING_LABEL)
     if monitor.stalemate_count >= policy.stalemate_limit:
         why = "資金の不足は示されていない" if gap is not None else "資金データが不足している"
         return d("settlement", "stalemate_no_gap", f"議論が{monitor.stalemate_count}回続けて膠着しました。{why}ためトリアージには進みません",

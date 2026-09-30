@@ -211,9 +211,12 @@ def monitor_values(m: Monitor) -> dict[str, str]:
         return "—" if v is None else f"{v:,}"
     from core.metrics import net_after_improvement
 
-    return {"runway": fmt_runway(m.cash_runway_months, net_after_improvement(m)),
-            "base_runway": fmt_runway(m.base_runway_months, m.base.free_cf),
-            "required": n(m.base.required_cf), "acc": n(m.accumulated_recovery_cf), "gap": n(m.gap),
+    from core.metrics import PENDING_LABEL, runway_label
+
+    pending = m.base.shortage_pending
+    return {"runway": runway_label(m.cash_runway_months, net_after_improvement(m), pending=pending),
+            "base_runway": runway_label(m.base_runway_months, m.base.free_cf, pending=pending),
+            "required": PENDING_LABEL if pending else n(m.base.required_cf), "acc": n(m.accumulated_recovery_cf), "gap": n(m.gap),
             "one_time": n(m.one_time_cash), "stalemate": str(m.stalemate_count)}
 
 
@@ -262,7 +265,13 @@ def _monitor_lines(m: Monitor, title: str) -> list[str]:
     v = monitor_values(m)
     lines = [f"## {title}",
              f"- 必要CF（年）：{v['required']}　回収CF累計（年、間に合うもののみ）：{v['acc']}　残りの不足：{v['gap']}",
-             f"- 一回限りの資金：{v['one_time']}　残余月数：改善前 {v['base_runway']} → 改善後 {v['runway']}"]
+             f"- 一括調達（一時的資金・一回限り）：{v['one_time']}　残余月数：改善前 {v['base_runway']} → 改善後 {v['runway']}"]
+    if m.base.shortage_pending:
+        from core.metrics import debt_doubt_text, reference_text
+
+        lines += [f"- {debt_doubt_text(m.base)}。資金不足の有無は判定保留（トリアージ不要とは言い切れない）",
+                  f"- {reference_text(m.base)}",
+                  "- 決着に必要なデータ：借入金返済予定表（金銭消費貸借契約書）。Analyst Radar の必須の宿題として請求している"]
     for c in m.counted:
         b = c.bridge
         lines.append(f"  - {c.message_id} {b.account} {b.direction} 資金効果 {b.cf_effect:,}（{b.lead_months}か月後、"
@@ -272,6 +281,8 @@ def _monitor_lines(m: Monitor, title: str) -> list[str]:
 
 def context_text(state: DebateState, ctx: DebateContext, recent: int = 14) -> str:
     """エージェントに渡す文脈。数字と判定はプログラムが出したものをそのまま示す。"""
+    if ctx.fin is not None:   # 資金の基礎値は、いまの財務データから計算し直したもの（約定返済の確認状況を含む）
+        state = state.model_copy(update={"monitor": state.monitor.model_copy(update={"base": ctx.base})})
     by_id: dict[str, list[str]] = {}
     for r in state.rulings:
         by_id.setdefault(r.message_id, []).append(f"{r.verdict}：{'／'.join(r.reasons)}")

@@ -240,6 +240,8 @@ def main() -> None:
     _diff_banner(run)
 
     fin = run.financials()
+    if fin is not None and not run.frozen:
+        mock_engine.ensure_debt_request(run)   # 約定返済が確かめられなければ、返済予定表を必須の宿題として請求（一件だけ）
     src_run = run.financials_source()
     report = reconcile(fin) if fin else None
     source_label = "—" if src_run is None else (

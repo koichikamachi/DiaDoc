@@ -235,6 +235,7 @@ def apply_intervention(run: Run, text: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 DOC_TYPES = [
     # 上から順に判定する。財務諸表一式は、販管費などの個別の内訳より先に見る（「決算報告書」を販管費内訳と誤らない）
+    ("借入金返済予定表", ["返済予定", "返済明細", "金銭消費貸借", "償還予定"]),
     ("勘定科目内訳明細書", ["内訳明細", "内訳書", "勘定科目"]),
     ("財務諸表（決算報告書）", ["決算報告書", "決算書", "財務諸表", "有価証券報告書", "有報", "計算書類",
                         "貸借対照表", "損益計算書", "FS", "fs", "securities-report"]),
@@ -278,6 +279,44 @@ def classify(filename: str) -> str:
 
 # データ請求と、それを解消する標準科目（値がそろえば「解消」）
 REQUEST_KEYS = {"R1": ("sga_adv",), "R2": ("sga_promo",), "R4": ("suspense", "other_recv")}
+# 会社ごとに番号が変わる自動の請求は、種類（kind）で解消の条件を持つ
+KIND_KEYS = {"debt_schedule": ("cltd",)}
+
+DEBT_REQUEST = {
+    "kind": "debt_schedule", "item": "借入金返済予定表", "required": True, "by": "radar",
+    "request_to": "金銭消費貸借契約書・借入金返済予定表（金融機関別の残高・毎月の返済額・最終返済期限）",
+    "resolves": "約定返済額の確定（資金不足の有無＝トリアージに入るかどうかの判定の前提）",
+    "doc_type": "借入金返済予定表",
+}
+
+
+def ensure_debt_request(run: Run) -> dict | None:
+    """長期借入金などに1年内返済の区分がなく約定返済が確かめられないとき、Analyst Radar の必須の宿題として
+    「借入金返済予定表」を自動で請求する（何度呼んでも一件だけ）。区分が確かめられるようになったら「解消」にする。"""
+    import re
+
+    if run.frozen:
+        return None
+    fin = run.financials()
+    if fin is None:
+        return None
+    base = metrics.cash_base(fin)
+    requests = run.read("data_requests.json", [])
+    cur = next((r for r in requests if r.get("kind") == "debt_schedule"), None)
+    if base.debt_unverified:
+        if cur is None:
+            n = max((int(r["id"][1:]) for r in requests if re.fullmatch(r"R\d+", r.get("id", ""))), default=0) + 1
+            cur = {"id": f"R{n}", **DEBT_REQUEST, "status": "請求中", "received": [],
+                   "note": metrics.debt_doubt_text(base) + "。" + metrics.reference_text(base)}
+            run.write("data_requests.json", requests + [cur])
+        return cur
+    if cur is not None and cur["status"] != "解消":
+        keys = KIND_KEYS["debt_schedule"]
+        cur["status"] = "解消"
+        cur["resolved_by"] = [{"key": k, "label": fin.items[k].label, "cur": fin.items[k].cur,
+                               "source": fin.items[k].source.model_dump()} for k in keys if k in fin.items]
+        run.write("data_requests.json", requests)
+    return cur
 
 
 def _read_file(run: Run, saved_name: str, content: bytes, extractor):
@@ -528,7 +567,7 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
     if real and outcome.gate not in ("停止", "未確認"):
         items = outcome.financials.items
         for r in requests:
-            keys = REQUEST_KEYS.get(r["id"])
+            keys = REQUEST_KEYS.get(r["id"]) or KIND_KEYS.get(r.get("kind", ""))
             if keys and r["status"] != "解消" and all(k in items and items[k].cur is not None for k in keys):
                 r["status"] = "解消"
                 r["resolved_by"] = [{"key": k, "label": items[k].label, "cur": items[k].cur,
@@ -658,7 +697,8 @@ def report_markdown(run: Run) -> str:
         L.append(f"- {n['id']} {n['label']}：{n['status']}　— {n['reason']}（{n['source']}）")
     L += ["", "## データ請求（宿題リスト）"]
     for r in requests:
-        L.append(f"- {r['id']} {r['item']}：{r['status']}　請求先：{r['request_to']}　解消する争点：{r['resolves']}")
+        must = "【必須】" if r.get("required") else ""
+        L.append(f"- {r['id']} {must}{r['item']}：{r['status']}　請求先：{r['request_to']}　解消する争点：{r['resolves']}")
     L += ["", "## 制約・前提条件"]
     L += [f"- {c}" for c in cons["constraints"]] or ["- なし"]
     return "\n".join(L) + "\n"
@@ -668,6 +708,7 @@ def refresh_derived(run: Run) -> None:
     """開いている回次の派生ファイル（差分・レポート）を更新する。凍結済みなら何もしない。"""
     if run.frozen:
         return
+    ensure_debt_request(run)
     d = diff_from_parent(run)
     if d is not None:
         run.write_text("diff_summary.md", diff_markdown(d))
