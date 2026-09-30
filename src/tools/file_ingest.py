@@ -447,9 +447,9 @@ class IngestOutcome(BaseModel):
             return s + ("。検算ゲート：中心となる検算（" + "・".join(m.get("unverified_core", []))
                         + "）を確かめられないため停止します（論争に進みません）")
         if self.gate == "軽微":
-            return s + (f"。検算ゲート：軽微な計算差異（{m.get('headline', '')}）。"
-                        "差し替えるか端数調整で続行するかを、人が選ぶまで論争に使いません")
-        return s + (f"。検算ゲート：重大な計算不一致（{m.get('headline', '')}）のため停止します（論争に進みません）")
+            return s + (f"。診断適格性（DDF）：条件付き適格（{m.get('headline', '')}）。"
+                        "差し替えるか、差異を承認して続行するかを人が選ぶまで、論争に使いません")
+        return s + (f"。診断適格性（DDF）：不適格（{m.get('headline', '')}）のため停止します（論争に進みません）")
 
 
 def ingest(filename: str, content: bytes, company_id: str, extractor: Extractor | None = None) -> IngestOutcome:
@@ -473,7 +473,7 @@ def ingest(filename: str, content: bytes, company_id: str, extractor: Extractor 
             return IngestOutcome(financials=fin, report=report, reconciliation=rec, gate="通過")
         info = {"level": m.level, "headline": m.headline(), "total_diff": m.total_diff,
                 "total_diff_thousand": m.total_diff_thousand, "pct_assets": m.pct_assets, "pct_sales": m.pct_sales,
-                "reasons": m.reasons}
+                "reasons": m.reasons, "qualitative": m.qualitative}
         return IngestOutcome(financials=fin, report=report, reconciliation=rec,
                              gate="軽微" if m.level == "軽微" else "停止", materiality=info)
     return IngestOutcome(financials=fin, report=report, gate="対象外")

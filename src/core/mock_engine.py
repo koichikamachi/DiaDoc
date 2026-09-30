@@ -343,7 +343,10 @@ def adopt_financials(run: Run, outcome) -> str:
 
 
 def approve_rounding(run: Run, file: str) -> str:
-    """軽微な差異の資料について、人の承認で端数調整差額を計上し、財務データとして採用する。監査証跡を残す。"""
+    """条件付き適格（軽微な差異）の資料について、人の承認で差額を未解明差異として計上し、財務データとして採用する。
+
+    監査証跡には「DDF条件付き適格を承認（未解明差異 N千円）」と残す。関数名は互換のため旧名のまま。
+    """
     from core.guardrails import reconcile
     from core.materiality import adjustments, assess
     from schema import Financials
@@ -352,16 +355,16 @@ def approve_rounding(run: Run, file: str) -> str:
     rec_path = f"extracted/{Path(file).stem}.json"
     x = run.read(rec_path)
     if not x or x.get("gate") != "軽微":
-        raise ValueError("端数調整で続行できるのは、軽微な差異と判定された資料だけです")
+        raise ValueError("差異を承認して続行できるのは、条件付き適格（軽微な差異）と判定された資料だけです")
     fin = Financials.model_validate(x["financials"])
     m = assess(fin, reconcile(fin))
     if m is None or m.level != "軽微":
-        raise ValueError("軽微な差異ではなくなりました（再判定の結果）")
+        raise ValueError("条件付き適格ではなくなりました（再判定の結果）")
     at = now_iso()
     fin.rounding_adjustments = fin.rounding_adjustments + adjustments(m, at, file)
     rec = reconcile(fin)
     if not rec.passed:
-        raise ValueError("端数調整後も検算が一致しません")
+        raise ValueError("未解明差異を計上しても検算が一致しません")
     own = (run.path / "inputs" / "financials.json").exists()
     if own:
         from tools.file_ingest import merge_missing
@@ -377,15 +380,16 @@ def approve_rounding(run: Run, file: str) -> str:
     x["financials"] = fin.model_dump()
     run.write(rec_path, x)
     lines = [f"{a.check}（{'当期' if a.period == 'cur' else '前期'}）{a.amount:+,} → {a.booked_to}" for a in fin.rounding_adjustments]
-    entry = {"at": at, "actor": "人間（ライム）", "action": "端数調整差額の計上を承認", "file": file,
+    entry = {"at": at, "actor": "人間（ライム）", "action": f"DDF条件付き適格を承認（未解明差異 {m.total_diff_thousand:,.0f}千円）",
+             "file": file,
              "total_diff_thousand": m.total_diff_thousand, "headline": m.headline(), "entries": lines}
     run.write("audit_log.json", run.read("audit_log.json", []) + [entry])
     run.write("debate_log.json", run.read("debate_log.json", []) + [
-        _msg("human", "承認", f"ユーザー承認による端数調整差額（{m.total_diff_thousand:,.0f}千円）の計上：{file}"),
-        _msg("judge", "検算ゲート", f"端数調整差額を計上し、検算が全項目で一致しました（{m.headline()}）。"
+        _msg("human", "承認", f"DDF条件付き適格を承認：未解明差異（{m.total_diff_thousand:,.0f}千円）の計上：{file}"),
+        _msg("judge", "検算ゲート", f"未解明差異（DM未満・承認済み）を計上し、検算が全項目で一致しました（{m.headline()}）。"
                                     "書類に書かれた合計を正として、この回次の財務データに採用します。", ruling="登録"),
     ])
-    return f"端数調整差額（{m.total_diff_thousand:,.0f}千円）を計上して採用しました。監査証跡に記録しています。"
+    return f"未解明差異（{m.total_diff_thousand:,.0f}千円）を計上して採用しました（DDF：条件付き適格）。監査証跡に記録しています。"
 
 
 def choose_replace(run: Run, file: str) -> str:
@@ -397,7 +401,7 @@ def choose_replace(run: Run, file: str) -> str:
     x["gate"] = "差し替え待ち"
     run.write(rec_path, x)
     run.write("audit_log.json", run.read("audit_log.json", []) + [
-        {"at": now_iso(), "actor": "人間（ライム）", "action": "財務諸表の差し替えを選択（端数調整はしない）", "file": file}])
+        {"at": now_iso(), "actor": "人間（ライム）", "action": "財務諸表の差し替えを選択（未解明差異は承認しない）", "file": file}])
     return "この資料は採用しません。訂正した財務諸表を投入してください。"
 
 
@@ -555,21 +559,25 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
     added = [_msg("human", "資料投入", f"追加資料を投入：{saved.name}"),
              _msg("radar", "資料受領", head + body, [{"file": saved.name, "page": None}])]
     if outcome is not None and outcome.gate == "停止":
-        head = (outcome.materiality or {}).get("headline", "")
+        m = outcome.materiality or {}
+        head = m.get("headline", "")
+        qual = "".join(f"質的重要性に抵触：{q}。" for q in m.get("qualitative") or [])
         added.append(_msg("judge", "検算ゲート",
-                          f"重大な計算不一致（{head}）のため、診断プロセスを停止しました。誤ったトリアージ判定を防ぐため、"
-                          "この資料の数値は論争に使いません。元資料の数値を訂正のうえ再投入してください。", ruling="保留"))
+                          f"診断適格性（DDF）：不適格。重大な計算不一致（{head}）のため、診断プロセスを停止しました。{qual}"
+                          "誤ったトリアージ判定を防ぐため、この資料の数値は論争に使いません。元資料の数値を訂正のうえ再投入してください。",
+                          ruling="保留"))
     elif outcome is not None and outcome.gate == "未確認":
         core = "・".join((outcome.materiality or {}).get("unverified_core", []))
         added.append(_msg("judge", "検算ゲート",
-                          f"中心となる検算（{core}）を確かめられないため、診断プロセスを停止しました。"
+                          f"診断適格性（DDF）：不適格。中心となる検算（{core}）を確かめられないため、診断プロセスを停止しました。"
                           "確かめていない数値で論争を始めることはしません。読み取れなかった行を確かめ、資料を補って再投入してください。",
                           ruling="保留"))
     elif outcome is not None and outcome.gate == "軽微":
         head = (outcome.materiality or {}).get("headline", "")
         added.append(_msg("judge", "検算ゲート",
-                          f"軽微な計算差異（{head}）を検出しました。財務諸表を差し替えるか、端数調整で続行するかを"
-                          "人が選ぶまで、この資料の数値は論争に使いません。", ruling="保留"))
+                          f"診断適格性（DDF）：条件付き適格。軽微な計算差異（{head}）は診断重要性（DM）の範囲内で、"
+                          "質的重要性（赤字転落・債務超過・資金不足の有無）への抵触はありません。財務諸表を差し替えるか、"
+                          "差異を承認して続行するかを人が選ぶまで、この資料の数値は論争に使いません。", ruling="保留"))
     elif touched:
         added += [_msg(w, "新事実", t, ruling=rl) for w, t, rl in FOLLOWUPS.get(doc_type, [])]
     else:
@@ -636,7 +644,10 @@ def report_markdown(run: Run) -> str:
     tree = run.read("decision_tree.json", {"nodes": []})
     requests = run.read("data_requests.json", [])
     cons = run.read("constraints.json", {"constraints": [], "stops": []})
+    from core.ddf import run_status
+
     L = [f"# 経営診断レポート　{meta.label}（{meta.as_of}）", "",
+         f"**財務データ診断適格性：{run_status(run)}**", "",
          f"- 状態：{'凍結済み' if meta.status == 'frozen' else '作業中'}　作成：{meta.created_at}",
          f"- 対象：{fin.fiscal_period if fin else '—'}　{fin.basis if fin else ''}", ""]
     if rep:

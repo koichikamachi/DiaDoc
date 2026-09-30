@@ -176,7 +176,7 @@ def _dropped(x: dict, stopped_by_mismatch: bool) -> None:
 
 
 def _gate_report(run) -> None:
-    """投入資料の検算ゲートの結果。軽微な差異は人が「差し替え」か「端数調整で続行」を選ぶ。重大な差異は止める。"""
+    """投入資料の診断適格性（DDF）。条件付き適格は人が「差し替え」か「差異を承認して続行」を選ぶ。不適格は止める。"""
     import json
 
     ss = st.session_state
@@ -194,9 +194,12 @@ def _gate_report(run) -> None:
         head = digest.gate_headline(x)
         if gate == "軽微":
             with st.container(border=True):
-                st.warning(f"**{name}**：軽微な計算差異（{head}）を検出しました。"
-                           "財務諸表を差し替えるか、端数調整で続行するかを選んでください。選ぶまで、この資料の数値は論争に使いません。",
-                           icon=":material/rule:")
+                diff = m.get("total_diff_thousand") or 0
+                st.warning(f"⚠️ **診断適格性（DDF）：条件付き適格（Conditionally Fit）**　{name}\n\n"
+                           f"理由: 差異額 {diff:,.0f}千円 は診断重要性（DM）の範囲内です。"
+                           "質的重要性（赤字転落・債務超過・資金不足の有無）への抵触はありません。\n\n"
+                           f"{head}。財務諸表を差し替えるか、差異を承認して続行するかを選んでください。"
+                           "選ぶまで、この資料の数値は論争に使いません。")
                 _failed_table(x.get("failed_checks") or [])
                 c1, c2 = st.columns(2)
                 key = f.stem
@@ -204,7 +207,7 @@ def _gate_report(run) -> None:
                              disabled=run.frozen):
                     ss.flash = mock_engine.choose_replace(run, name)
                     st.rerun()
-                if c2.button("端数調整で自動調整して診断を続行する", key=f"gate_adjust_{key}", type="primary",
+                if c2.button("差異を承認して続行（未解明差異として計上）", key=f"gate_adjust_{key}", type="primary",
                              width="stretch", disabled=run.frozen):
                     from session import forget
 
@@ -214,24 +217,39 @@ def _gate_report(run) -> None:
                         ss.flash = str(e)
                     forget(run)   # 採用した財務データで論争の文脈を読み直す
                     st.rerun()
-                st.caption("端数調整：書類に書かれた合計を正として残し、内訳とのずれを「端数調整差額」として計上します"
-                           "（BS の資産側はその他流動資産、負債・純資産側はその他流動負債、PL は雑損益）。承認は監査証跡に記録します")
+                st.caption("承認すると、書類に書かれた合計を正として残し、内訳とのずれを「未解明差異（DM未満・承認済み）」として"
+                           "計上します（BS の資産側はその他流動資産、負債・純資産側はその他流動負債、PL は雑損益）。"
+                           "端数処理の許容差を超えているため端数ではなく、原因の分からない差として扱います。承認は監査証跡に記録します")
         elif gate == "停止":
             with st.container(border=True):
-                st.error(f"**{name}**：重大な計算不一致（{head}）のため、診断プロセスを停止しました。"
-                         "誤ったトリアージ判定を防ぐため、元資料の数値を訂正のうえ再投入してください。", icon=":material/block:")
+                qual = m.get("qualitative") or []
+                within_dm = not any(not r.startswith("質的重要性") for r in m.get("reasons") or [])
+                if qual and within_dm:
+                    st.error(f"⛔ **診断適格性（DDF）：不適格（Not Fit）**　{name}\n\n"
+                             f"差異（{head}）は金額では診断重要性（DM）の範囲内ですが、質的重要性に抵触するため、"
+                             "診断プロセスを停止しました。どちらの数字を信じるかで診断の結論が変わります。"
+                             "元資料の数値を訂正のうえ再投入してください。")
+                else:
+                    st.error(f"⛔ **診断適格性（DDF）：不適格（Not Fit）**　{name}\n\n"
+                             f"重大な計算不一致（{head}）のため、診断プロセスを停止しました。"
+                             "誤ったトリアージ判定を防ぐため、元資料の数値を訂正のうえ再投入してください。")
                 if m.get("reasons"):
-                    st.caption("重大と判定した理由：" + "／".join(m["reasons"]))
+                    st.caption("不適格と判定した理由：" + "／".join(m["reasons"]))
                 _failed_table(x.get("failed_checks") or [])
                 _dropped(x, stopped_by_mismatch=True)
         elif gate == "未確認":
             with st.container(border=True):
-                st.error(f"**{name}**：中心となる検算（{'・'.join(m.get('unverified_core', []))}）を確かめられないため、"
-                         "診断プロセスを停止しました。確かめていない数値で論争を始めることはしません。", icon=":material/help:")
+                st.error(f"⛔ **診断適格性（DDF）：不適格（Not Fit）**　{name}\n\n"
+                         f"中心となる検算（{'・'.join(m.get('unverified_core', []))}）を確かめられないため、"
+                         "診断プロセスを停止しました。確かめていない数値で論争を始めることはしません。")
                 _dropped(x, stopped_by_mismatch=False)
         elif gate == "差し替え待ち":
             st.info(f"**{name}**：差し替えを選びました。訂正した財務諸表を投入してください（この資料は採用していません）。",
                     icon=":material/sync:")
+        elif gate == "通過":
+            st.success(f"✅ **診断適格性（DDF）：適格（Fit）**　{name}", icon=None)
+        elif gate == "通過（端数調整）":
+            st.info(f"**診断適格性（DDF）：条件付き適格（未解明差異を承認済み）**　{name}", icon=":material/verified:")
     log = run.read("audit_log.json", [])
     if log:
         with st.expander(f"監査証跡（{len(log)}件）", icon=":material/fact_check:"):

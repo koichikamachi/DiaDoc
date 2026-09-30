@@ -1,11 +1,12 @@
-"""検算ゲートの二段階判定（重要性）と、人が承認する端数調整。
+"""検算ゲートの二段階判定（重要性）と、人が承認する未解明差異（診断適格性 DDF の金額基準。質的基準は core.ddf）。
 
 検算で合わなかった項目の差額（絶対値の合計）が、次の三つをすべて満たすときだけ「軽微な差異」とする。
   - 総資産の 0.5% 未満
   - 売上高の 0.5% 未満
   - 100万円（1,000千円）未満
-それ以外は「重大な差異」とし、診断を止める。軽微な差異は、人が「端数調整で続行」を選んだときだけ、
-差額を端数調整差額として記録して先へ進める（書類に書かれた合計は正として残し、指標もそれを使う）。
+それ以外は「重大な差異」とし、診断を止める。金額が小さくても質的重要性（core.ddf）に抵触すれば重大とする。
+軽微な差異は、人が「差異を承認して続行」を選んだときだけ、差額を未解明差異として記録して先へ進める
+（書類に書かれた合計は正として残し、指標もそれを使う）。端数処理の許容差の内の差は、そもそも不一致に数えない。
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ class Materiality:
     reasons: list[str] = field(default_factory=list)
 
     scale: float = 1.0       # 表示単位 → 千円
+    qualitative: list[str] = field(default_factory=list)   # 質的重要性に抵触する理由（core.ddf）
 
     def headline(self) -> str:
         """画面の見出し。差額が複数の検算にわたるときは「差額合計」とし、件数と内訳（大きい順・3件まで）を添える。"""
@@ -101,18 +103,22 @@ def assess(fin: Financials, rec: ReconciliationReport) -> Materiality | None:
             reasons.append(f"売上高の{ps:.3%}（0.5%以上）")
     if thousand >= ABS_LIMIT_THOUSAND:
         reasons.append(f"差額{thousand:,.0f}千円（100万円以上）")
-    return Materiality("重大" if reasons else "軽微", total, thousand, pa, ps, fs, reasons, scale)
+    from core.ddf import qualitative
+
+    qual = qualitative(fin, fs)   # 金額が小さくても、診断の結論を変える差は重大とする
+    reasons += [f"質的重要性：{q}" for q in qual]
+    return Materiality("重大" if reasons else "軽微", total, thousand, pa, ps, fs, reasons, scale, qual)
 
 
 def booked_to(f: Failure) -> str:
-    """端数調整差額の計上先。BS は資産側ならその他流動資産、負債・純資産側ならその他流動負債。PL は雑損益。"""
+    """未解明差異の計上先。BS は資産側ならその他流動資産、負債・純資産側ならその他流動負債。PL は雑損益。"""
     if f.group in BS_GROUPS or f.check in ("純資産額", "総資産額"):
         if f.group == "貸借一致":
             # 計算値（資産または負債＋純資産）が報告値より小さい＝その側が不足
-            return "その他流動資産（端数調整差額）" if (f.check.startswith("資産合計") and f.amount > 0) \
-                else "その他流動負債（端数調整差額）"
-        return "その他流動資産（端数調整差額）" if f.check in ASSET_CHECKS else "その他流動負債（端数調整差額）"
-    return "雑損益（端数調整）"
+            return "その他流動資産（未解明差異）" if (f.check.startswith("資産合計") and f.amount > 0) \
+                else "その他流動負債（未解明差異）"
+        return "その他流動資産（未解明差異）" if f.check in ASSET_CHECKS else "その他流動負債（未解明差異）"
+    return "雑損益（未解明差異）"
 
 
 def adjustments(m: Materiality, approved_at: str, file: str = "") -> list[RoundingAdjustment]:

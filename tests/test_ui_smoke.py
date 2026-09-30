@@ -289,14 +289,16 @@ def test_minor_difference_offers_two_choices_and_adjusts(data):
     at = _run()
     at.selectbox(key="company").set_value(company).run()
     assert not at.exception, at.exception
-    assert any("軽微な計算差異（差額: 300千円" in w.value for w in at.warning)
+    assert any("診断適格性（DDF）：条件付き適格（Conditionally Fit）" in w.value
+               and "差異額 300千円 は診断重要性（DM）の範囲内" in w.value for w in at.warning)
     labels = [b.label for b in at.button]
-    assert "財務諸表を修正して差し替える" in labels and "端数調整で自動調整して診断を続行する" in labels
-    next(b for b in at.button if b.label == "端数調整で自動調整して診断を続行する").click().run()
+    ok = "差異を承認して続行（未解明差異として計上）"
+    assert "財務諸表を修正して差し替える" in labels and ok in labels
+    next(b for b in at.button if b.label == ok).click().run()
     assert not at.exception, at.exception
     assert latest_run(company).financials() is not None
-    assert "端数調整差額の計上を承認" in _texts(at)                  # 監査証跡に出る
-    assert any("人が承認した端数調整差額" in i.value for i in at.info)   # 検算の欄にも明示される
+    assert "人間（ライム）：DDF条件付き適格を承認（未解明差異 300千円）" in _texts(at)   # 監査証跡に出る
+    assert any("未解明差異（DM未満）" in i.value for i in at.info)      # 検算の欄にも明示される
 
 
 def test_document_preview_opens_in_a_dialog(data):

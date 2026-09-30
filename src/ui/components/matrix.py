@@ -242,8 +242,8 @@ def _render_recon(report: ReconciliationReport, fin: Financials, source_label: s
               help="千円未満切捨ての表示で生じた1〜2千円のずれを、許容差の内として一致とみなした件数（期ごとに数える）")
     if fin.rounding_adjustments:
         total = sum(abs(a.amount) for a in fin.rounding_adjustments)
-        st.info(f"人が承認した端数調整差額で一致させた項目が{report.adjusted_count}件あります（合計{total:,}{fin.unit}）。"
-                "書類に書かれた合計を正とし、ずれは端数調整差額として計上しています", icon=":material/fact_check:")
+        st.info(f"診断適格性（DDF）：条件付き適格。人が承認した未解明差異（DM未満）で一致させた項目が{report.adjusted_count}件あります"
+                f"（合計{total:,}{fin.unit}）。書類に書かれた合計を正とし、ずれは未解明差異として計上しています", icon=":material/fact_check:")
     rule = "円単位のため許容差0" if fin.rounding == "yen" else "許容差＝内訳件数n千円（最低2千円）"
     st.caption(f"規則：{rule}。{fin.rounding_note}")
     st.caption(f"検算対象：{source_label}（core.guardrails.reconcile の実行結果）")
@@ -360,9 +360,9 @@ def render(fin: Financials | None, report: ReconciliationReport | None, mode: st
         _render_requests(requests)
 
 
-GATE_BADGE = {"通過": ("green", "検算ゲート通過"), "通過（端数調整）": ("green", "検算ゲート通過（端数調整を承認）"),
-              "軽微": ("orange", "軽微な差異（人の判断待ち）"), "差し替え待ち": ("gray", "差し替え待ち（不採用）"),
-              "停止": ("red", "重大な差異で停止"), "未確認": ("red", "中心の検算を確かめられず停止"), "対象外": ("gray", "検算対象外（部分資料）")}
+GATE_BADGE = {"通過": ("green", "DDF：適格"), "通過（端数調整）": ("green", "DDF：条件付き適格（未解明差異を承認済み）"),
+              "軽微": ("orange", "DDF：条件付き適格（承認待ち）"), "差し替え待ち": ("gray", "差し替え待ち（不採用）"),
+              "停止": ("red", "DDF：不適格（停止）"), "未確認": ("red", "DDF：不適格（中心の検算を確かめられず停止）"), "対象外": ("gray", "検算対象外（部分資料）")}
 
 
 def render_extractions(run) -> None:

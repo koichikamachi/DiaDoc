@@ -80,11 +80,11 @@ def test_missing_base_is_major():
 
 def test_booking_rules():
     F = mt.Failure
-    assert mt.booked_to(F("BS内訳", "流動資産合計", "cur", 1, 2, -1)) == "その他流動資産（端数調整差額）"
-    assert mt.booked_to(F("BS内訳", "流動負債合計", "cur", 1, 2, -1)) == "その他流動負債（端数調整差額）"
-    assert mt.booked_to(F("貸借一致", "資産合計＝負債純資産合計", "cur", 99, 100, -1)) == "その他流動資産（端数調整差額）"
-    assert mt.booked_to(F("貸借一致", "資産合計＝負債純資産合計", "cur", 101, 100, 1)) == "その他流動負債（端数調整差額）"
-    assert mt.booked_to(F("段階利益", "営業利益", "cur", 1, 2, -1)) == "雑損益（端数調整）"
+    assert mt.booked_to(F("BS内訳", "流動資産合計", "cur", 1, 2, -1)) == "その他流動資産（未解明差異）"
+    assert mt.booked_to(F("BS内訳", "流動負債合計", "cur", 1, 2, -1)) == "その他流動負債（未解明差異）"
+    assert mt.booked_to(F("貸借一致", "資産合計＝負債純資産合計", "cur", 99, 100, -1)) == "その他流動資産（未解明差異）"
+    assert mt.booked_to(F("貸借一致", "資産合計＝負債純資産合計", "cur", 101, 100, 1)) == "その他流動負債（未解明差異）"
+    assert mt.booked_to(F("段階利益", "営業利益", "cur", 1, 2, -1)) == "雑損益（未解明差異）"
 
 
 def test_minor_upload_waits_for_a_human_then_adjusts(data):
@@ -103,7 +103,7 @@ def test_minor_upload_waits_for_a_human_then_adjusts(data):
     assert adj.check == "流動資産合計" and adj.amount == -300 and adj.booked_to.startswith("その他流動資産")
     assert fin.value("ta") == 890_500                                      # 書類の合計は正として残す
     log = run.read("audit_log.json")
-    assert log[-1]["action"] == "端数調整差額の計上を承認" and log[-1]["total_diff_thousand"] == 300
+    assert log[-1]["action"] == "DDF条件付き適格を承認（未解明差異 300千円）" and log[-1]["total_diff_thousand"] == 300
     assert run.read("extracted/決算書_第62期.json")["gate"] == "通過（端数調整）"
     with pytest.raises(ValueError):
         approve_rounding(run, "決算書_第62期.pdf")                          # 二度は承認できない
