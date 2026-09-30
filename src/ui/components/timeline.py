@@ -274,7 +274,8 @@ def render(session: DebateSession, frozen: bool) -> None:
                        file_name=csv_name(session), mime="text/csv", disabled=state is None or not state.messages,
                        help="議論ログをCSVで保存（Excel でそのまま開ける BOM 付き UTF-8）")
     if st.session_state.get("debate_error"):
-        st.error("発言の生成に失敗しました。状態は進んでいないので、もう一度押せば再試行できます。\n\n"
+        st.error("発言の生成に失敗しました。状態は進んでいません。もう一度「▶ 1手進める」を押すと、同じ発言をやり直します"
+                 "（「⏩ 次のラウンドへ」で進めていた場合は、そちらを押し直してください）。\n\n"
                  + st.session_state.debate_error, icon=":material/error:")
 
     # --- タイムライン --------------------------------------------------------

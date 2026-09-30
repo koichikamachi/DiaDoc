@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -197,16 +197,30 @@ Action = Literal["提示", "提案", "攻撃", "防御", "譲歩", "宣告", "�
 AgendaStatus = Literal["審理中", "決着", "保留"]
 
 
+MAX_AMOUNT = 999_999_999   # 金額欄の上限（千円・9桁＝約1兆円）。生成の暴走（000… の羅列）を受け付けない
+
+
+def bounded_amount(v: int | None) -> int | None:
+    if v is not None and abs(v) > MAX_AMOUNT:
+        raise ValueError(f"金額が大きすぎます（千円単位・9桁以内で書いてください）：{v}")
+    return v
+
+
 class CausalBridge(BaseModel):
     """定性の主張を数字につなぐ橋。「どの科目が、いくら、何か月後に動き、資金がいくら増減するか」。"""
 
     account: str                       # 標準科目のキー（合計行・利益行は不可）
     direction: Literal["増", "減"]
-    amount: int                        # 科目の変動額（千円・正の数）。恒常的なら年額、一回限りならその額
-    cf_effect: int                     # 資金への効果（千円）。正なら資金を生む。恒常的なら年額
-    lead_months: int                   # 効果が出始めるまでの月数
+    amount: int = Field(description="科目の変動額（千円・正の整数・9桁以内）")   # 恒常的なら年額、一回限りならその額
+    cf_effect: int = Field(description="資金への効果（千円・整数・9桁以内）。正なら資金を生む")   # 恒常的なら年額
+    lead_months: int = Field(description="効果が出始めるまでの月数（0以上の整数）")
     recurring: bool = True             # 毎年続く効果（経費削減など）か、一回限り（資産売却など）か
     rationale: str = ""
+
+    @field_validator("amount", "cf_effect")
+    @classmethod
+    def _bounded(cls, v: int) -> int:
+        return bounded_amount(v)
 
 
 class TriageOption(BaseModel):

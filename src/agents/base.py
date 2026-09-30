@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from core.guardrails import cash_sign
 from core.metrics import cash_base, project
@@ -28,6 +28,7 @@ from schema import (
     Phase,
     SourceRef,
     TriageOption,
+    bounded_amount,
     stamp,
 )
 from state import DebateState
@@ -62,7 +63,12 @@ class AgentTurn(BaseModel):
     agenda_ops: list[AgendaOp] = Field(default_factory=list)
     target_message: str | None = Field(default=None, description="攻撃・防御の相手の発言ID（例：R1-growth-2）。攻撃なら疑義を向けた提案、防御なら受けた攻撃")
     challenged_account: str | None = Field(default=None, description="攻撃のとき：疑義を向けた因果ブリッジの科目キー（提案全体なら空）")
-    feasible_cf: int | None = Field(default=None, description="攻撃のとき：その科目（または提案全体）で現実的と見る資金効果（年・千円）。まったく見込めないなら0")
+    feasible_cf: int | None = Field(default=None, description="攻撃のとき：その科目（または提案全体）で現実的と見る資金効果（年・千円・0以上の整数・9桁以内）。まったく見込めないなら0")
+
+    @field_validator("feasible_cf")
+    @classmethod
+    def _feasible(cls, v: int | None) -> int | None:
+        return bounded_amount(v)
 
 
 class AssessmentOut(BaseModel):

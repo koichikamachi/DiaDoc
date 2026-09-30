@@ -212,3 +212,77 @@ def test_radar_is_told_to_point_out_rather_than_open():
 
     prompt = Radar().role_prompt("exploration")
     assert "論点があることを指摘します" in prompt and "注意を向けるべきです" in prompt
+
+
+# ---------------------------------------------------------------------------
+# 生成の失敗への備え（桁外れの数字・壊れた JSON）
+# ---------------------------------------------------------------------------
+class _Resp:
+    def __init__(self, text):
+        self.text, self.parsed = text, None
+
+
+class _Client:
+    def __init__(self, texts):
+        self.texts, self.calls = list(texts), 0
+        self.models = self
+
+    def generate_content(self, **kw):
+        self.calls += 1
+        return _Resp(self.texts.pop(0))
+
+
+class _Agent:
+    id = "rebuild"
+
+
+class _State:
+    round, phase = 1, "exploration"
+
+
+class _Ctx:
+    trace_path = None
+
+
+RUNAWAY = '{"action": "攻撃", "text": "過大", "feasible_cf": 1' + "0" * 40 + "}"
+GOOD = '{"action": "攻撃", "text": "労務費2割減は無理", "feasible_cf": 6000}'
+
+
+def _speaker(texts):
+    from agents.speakers import GeminiSpeaker
+
+    return GeminiSpeaker(client=_Client(texts), model="fake")
+
+
+def test_runaway_number_is_regenerated_behind_the_scenes():
+    from agents.base import AgentTurn
+
+    sp = _speaker([RUNAWAY, GOOD])
+    out = sp.generate(_Agent(), "sys", "user", AgentTurn, _State(), _Ctx())
+    assert out.feasible_cf == 6000 and sp.client.calls == 2
+
+
+def test_gives_up_after_the_retries_and_the_state_can_be_retried():
+    from agents.base import AgentTurn
+
+    sp = _speaker([RUNAWAY] * 3)
+    with pytest.raises(ValueError):
+        sp.generate(_Agent(), "sys", "user", AgentTurn, _State(), _Ctx())
+    assert sp.client.calls == 3                                                     # 1回＋作り直し2回
+
+
+def test_absurd_amounts_are_rejected():
+    from pydantic import ValidationError
+
+    from agents.base import AgentTurn
+
+    with pytest.raises(ValidationError):
+        AgentTurn.model_validate_json('{"action": "攻撃", "text": "x", "feasible_cf": 1000000000}')
+    with pytest.raises(ValidationError):
+        CausalBridge(account="lab", direction="減", amount=5, cf_effect=10**12, lead_months=1)
+    assert CausalBridge(account="lab", direction="減", amount=999_999_999, cf_effect=-5, lead_months=1)
+
+
+def test_error_message_names_the_button():
+    src = (ROOT / "src/ui/components/timeline.py").read_text(encoding="utf-8")
+    assert "もう一度「▶ 1手進める」を押すと" in src

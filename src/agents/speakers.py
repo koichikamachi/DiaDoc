@@ -57,6 +57,7 @@ class GeminiSpeaker:
     """Gemini の構造化出力で発言を生成する。失敗したら例外を上げ、論争の状態は進めない（再試行できる）。"""
 
     name = "gemini"
+    RETRIES = 2   # 返答が壊れていたときに、裏で作り直させる回数
 
     def __init__(self, client=None, model: str | None = None, temperature: float = 0.4):
         if client is None:
@@ -69,12 +70,23 @@ class GeminiSpeaker:
         self.temperature = temperature
 
     def generate(self, agent, system, user, schema: type[BaseModel], state, ctx) -> BaseModel:
+        """返答の JSON が壊れている・型に合わない（桁外れの数字など）ときは、画面にエラーを出す前に
+        最大 RETRIES 回まで作り直させる。通信・認証などの失敗はやり直さずにそのまま上げる。"""
+        last: Exception | None = None
+        for attempt in range(1, self.RETRIES + 2):
+            try:
+                return self._once(agent, system, user, schema, state, ctx, attempt)
+            except ValueError as e:   # pydantic の ValidationError・JSON の読み取り失敗はどちらも ValueError
+                last = e
+        raise last
+
+    def _once(self, agent, system, user, schema, state, ctx, attempt: int) -> BaseModel:
         from google.genai import types
 
         t0 = time.time()
         record = {"at": datetime.now().isoformat(timespec="seconds"), "agent": agent.id, "round": state.round,
                   "phase": state.phase, "model": self.model, "schema": schema.__name__,
-                  "prompt_chars": len(system) + len(user)}
+                  "prompt_chars": len(system) + len(user), "attempt": attempt}
         try:
             resp = self.client.models.generate_content(
                 model=self.model,
