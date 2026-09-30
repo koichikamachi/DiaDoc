@@ -61,7 +61,7 @@ def test_consistent_statement_is_fit(data):
     company = create_company("丁工業", fictional=True)
     run, _, _ = handle_upload(company, "丁.xlsx", b"x", extractor=_Fixed(_lines(sga_reported=49_800)))
     assert run.read("extracted/丁.json")["gate"] == "通過" and ddf.run_status(run) == ddf.FIT
-    assert "**財務データ診断適格性：適格（Fit）**" in report_markdown(run)
+    assert "- **診断適格性（DDF）**：適格（Fit）" in report_markdown(run)
 
 
 def test_small_difference_is_conditionally_fit_and_needs_a_human(data):
@@ -77,7 +77,7 @@ def test_small_difference_is_conditionally_fit_and_needs_a_human(data):
     log = run.read("audit_log.json")[-1]
     assert f"{log['actor']}：{log['action']}" == "人間（ライム）：DDF条件付き適格を承認（未解明差異 300千円）"
     assert run.financials().rounding_adjustments[0].booked_to == "雑損益（未解明差異）"
-    assert "**財務データ診断適格性：条件付き適格（Conditionally Fit）：未解明差異 300千円を承認済み**" in report_markdown(run)
+    assert "- **診断適格性（DDF）**：条件付き適格（Conditionally Fit）：未解明差異 300千円を承認済み" in report_markdown(run)
 
 
 def test_small_difference_that_flips_the_operating_result_is_not_fit():

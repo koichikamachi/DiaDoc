@@ -692,36 +692,10 @@ def diff_markdown(d: dict) -> str:
 
 
 def report_markdown(run: Run) -> str:
-    meta = run.meta
-    fin = run.financials()
-    rep = reconcile(fin) if fin else None
-    tree = run.read("decision_tree.json", {"nodes": []})
-    requests = run.read("data_requests.json", [])
-    cons = run.read("constraints.json", {"constraints": [], "stops": []})
-    from core.ddf import run_status
+    """診断レポート（Markdown）。回次の全データを統合したもの（core.conclusion）。"""
+    from core.conclusion import report_markdown as build
 
-    L = [f"# 経営診断レポート　{meta.label}（{meta.as_of}）", "",
-         f"**財務データ診断適格性：{run_status(run)}**", "",
-         f"- 状態：{'凍結済み' if meta.status == 'frozen' else '作業中'}　作成：{meta.created_at}",
-         f"- 対象：{fin.fiscal_period if fin else '—'}　{fin.basis if fin else ''}", ""]
-    if rep:
-        L += ["## 検算ゲート", f"- 全{rep.total}項目　一致{rep.count('一致')}　不一致{rep.count('不一致')}　未確認{rep.count('未確認')}"
-              f"（端数差{rep.rounding_diffs}件は許容差内）", ""]
-    L += ["## シナリオの採否"]
-    for n in tree["nodes"]:
-        L.append(f"- {n['id']} {n['label']}：{n['status']}　— {n['reason']}（{n['source']}）")
-    L += ["", "## データ請求（宿題リスト）"]
-    for r in requests:
-        must = "【必須】" if r.get("required") else ""
-        L.append(f"- {r['id']} {must}{r['item']}：{r['status']}　請求先：{r['request_to']}　解消する争点：{r['resolves']}")
-    from core import repayment
-
-    rp = repayment.load(run)
-    if rp is not None:
-        L += ["", "## 約定返済（人間が確定）", f"- {rp.describe()}　確定日時：{rp.at}（資金の監視はこの額で計算。決算書の数字は変えていない）"]
-    L += ["", "## 制約・前提条件"]
-    L += [f"- {c}" for c in cons["constraints"]] or ["- なし"]
-    return "\n".join(L) + "\n"
+    return build(run)
 
 
 def refresh_derived(run: Run) -> None:

@@ -208,7 +208,7 @@ def test_confirmation_resolves_the_homework_and_withdrawal_reopens_it(data):
     repayment.confirm(run, 6_000, "返済予定表を確認")
     r = ensure_debt_request(run)
     assert r["status"] == "解消" and r["resolved_how"] == "人間が確定" and r["resolved_by"][0]["cur"] == 6_000
-    assert "## 約定返済（人間が確定）" in report_markdown(run)
+    assert "- **約定返済額の確定**：年間約定返済額 6,000千円（根拠：返済予定表を確認）" in report_markdown(run)
     assert repayment.withdraw(run).amount == 6_000
     assert repayment.load(run) is None and repayment.cash_base_for(run).shortage_pending
     r = ensure_debt_request(run)

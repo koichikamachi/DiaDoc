@@ -25,7 +25,7 @@ import config  # noqa: E402
 import theme  # noqa: E402
 from agents_profile import PHASE  # noqa: E402
 from components import debate, dock, live_panel, matrix, timeline, tree  # noqa: E402
-from core import digest, export, mock_engine  # noqa: E402
+from core import conclusion, digest, export, mock_engine  # noqa: E402
 from core.guardrails import reconcile  # noqa: E402
 from core.runs import Run, list_companies, list_runs, load_benchmarks  # noqa: E402
 from session import get_session, reset  # noqa: E402
@@ -105,7 +105,7 @@ def sidebar() -> tuple[Run, str]:
             ss[rk] = pending[1]
         if ss.get(rk) not in ids:
             ss[rk] = ids[-1]
-        labels = {r.run_id: f"{r.meta.label}: {r.meta.as_of}" + ("（凍結）" if r.frozen else "（作業中）") for r in runs}
+        labels = {r.run_id: f"{conclusion.run_heading(r, digest.load_state(r))}　{r.meta.as_of}" for r in runs}
         st.selectbox("分析回次", ids, format_func=labels.get, key=rk)
         run = _current_run()
         st.button("＋ 新しい分析回次（Run）を開始", width="stretch", on_click=_on_new_run,
@@ -132,10 +132,15 @@ def sidebar() -> tuple[Run, str]:
         st.download_button("📥 議論ログをCSV出力", export.to_csv_bytes(stt), width="stretch", key="csv_side",
                            file_name=timeline.csv_name(sess), mime="text/csv",
                            disabled=stt is None or not stt.messages)
-        report = run.read_text(f"report_v{run.meta.seq}.md")
+        try:   # 押した時点の回次の全データから、診断レポートを組み立てる（論争の途中なら途中経過として）
+            report = mock_engine.report_markdown(run)
+        except Exception:   # 組み立てに失敗しても、保存済みのレポートがあればそれを出す
+            report = run.read_text(f"report_v{run.meta.seq}.md")
         if report:
             st.download_button("レポートを保存（Markdown）", report, file_name=f"{run.company}_{run.run_id}_report.md",
-                               mime="text/markdown", width="stretch", icon=":material/download:")
+                               mime="text/markdown", width="stretch", icon=":material/download:", key="report_md",
+                               help="回次の全データ（診断適格性・前提と人間の確定・採択された施策・残るリスク・宿題）を"
+                                    "まとめた診断レポート。論争が終わる前に押すと、その時点の途中経過になります")
     return run, "real" if real else "nominal"
 
 
@@ -157,13 +162,14 @@ def _diff_banner(run: Run) -> None:
         st.markdown(md_text)
 
 
-def _header(run: Run, company: dict, state) -> None:
+def _header(run: Run, company: dict, state, base=None) -> None:
     meta = run.meta
-    status = "凍結済み・閲覧のみ" if run.frozen else "作業中"
-    ph = PHASE[state.phase] if state else None
+    done = conclusion.finished(state)
+    ph = PHASE[state.phase] if state and state.messages and not done else None   # 進行中だけフェーズを添える
     st.html(f'<div class="dd-header"><span class="dd-brand">{config.APP_SHORT}<small>Dialectic-BizDoctor</small></span>'
             f'<span class="dd-tagline">{config.APP_TAGLINE}</span></div>')
-    chips = f":material/business: **{company.get('display_name', run.company)}**　｜　{meta.label}（{meta.as_of}、{status}）"
+    chips = (f":material/business: **{company.get('display_name', run.company)}**　｜　"
+             f"**{conclusion.run_heading(run, state, base)}**　:gray[{meta.as_of}]")
     if ph:
         chips += f"　｜　:{ph['color']}-badge[{ph['icon']} {ph['label']}]"
     if company.get("fictional"):
@@ -171,6 +177,19 @@ def _header(run: Run, company: dict, state) -> None:
     elif company.get("anonymized"):
         chips += "　:violet-badge[:material/masks: モデル企業]"
     st.markdown(chips)
+
+
+def _goal_banner(run: Run, session, state) -> None:
+    """論争が終わったら、結論を一目で分かるカード（ゴールテープ）を画面の上に出す。"""
+    if not conclusion.finished(state) or session.ctx.fin is None:
+        return
+    b = conclusion.banner(state, session.ctx.base, run.read("data_requests.json", []))
+    if b is None:
+        return
+    body = f"**{b.title}**" + "".join(f"\n- {x}" for x in b.lines)
+    show = {"success": st.success, "info": st.info, "warning": st.warning, "error": st.error}[b.tone]
+    with st.container(key="goal-banner"):
+        show(body, icon=b.icon)
 
 
 def _adoption(session, state, run: Run) -> None:
@@ -224,7 +243,7 @@ def main() -> None:
     session = get_session(run)
     state = session.state() if session.started else None
 
-    _header(run, company, state)
+    _header(run, company, state, session.ctx.base if session.ctx.fin is not None else None)
     if company.get("fictional"):
         st.warning("**架空モデル**：実在の会社ではありません。資金ショート寸前の窮境企業として作った対比用のシナリオです。",
                    icon=":material/theater_comedy:")
@@ -234,6 +253,7 @@ def main() -> None:
     if ss.get("flash"):
         st.toast(ss.flash, icon=":material/record_voice_over:")
         ss.flash = None
+    _goal_banner(run, session, state)
     if run.frozen:
         st.info(f"この回次は {run.meta.frozen_at} に凍結されました。当時の論争・検算・ツリーをそのまま再現しています。",
                 icon=":material/lock:")
