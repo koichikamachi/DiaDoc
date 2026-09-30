@@ -391,10 +391,10 @@ def _mission(run, session: DebateSession, state: DebateState | None) -> None:
         choice = st.selectbox("主訴の型", opts, key="mission_choice")
         free = ""
         if choice == FREE:   # 定型を選んだときは記述欄を出さない
-            free = st.text_input("ミッションを書く", key="mission_free",
-                                 placeholder="例：メインバンクへの事業計画提出に向けた再建策の骨子づくり")
+            free = st.text_input("自由記述ミッション", key="mission_free",
+                                 placeholder="自由に書くミッションは、ここに書いてください（例：メインバンクへの事業計画提出に向けた再建策の骨子づくり）")
         st.caption("4人の担当者に共通の討議目的になります。論争の途中で変えると、介入として記録に残ります")
-        if st.button("このミッションで進める", key="mission_set", icon=":material/check:"):
+        if st.button("改訂ミッションで進める", key="mission_set", icon=":material/check:"):
             new = free if choice == FREE else choice
             try:
                 session.set_mission(new)
