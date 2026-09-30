@@ -7,6 +7,7 @@ graphviz==0.21
 pydantic==2.13.3
 google-genai==2.25.0
 openpyxl==3.1.5
+python-docx==1.2.0
 python-dotenv==1.2.2
 langgraph==1.2.12
 langgraph-checkpoint==4.2.0

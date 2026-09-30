@@ -141,6 +141,12 @@ def sidebar() -> tuple[Run, str]:
                                mime="text/markdown", width="stretch", icon=":material/download:", key="report_md",
                                help="回次の全データ（診断適格性・前提と人間の確定・採択された施策・残るリスク・宿題）を"
                                     "まとめた診断レポート。論争が終わる前に押すと、その時点の途中経過になります")
+        done = conclusion.finished(stt)
+        if st.button("📝 診断経緯の文章化", width="stretch", key="narrative_btn", disabled=not done,
+                     help=("診断レポートを材料に、Gemini が「審理経緯レポート（社内・監査向け）」と"
+                           "「金融機関提出用サマリー」の下書きを書きます。Word（.docx）か Markdown で保存できます"
+                           if done else "論争が終わった（診断完了の）回次でだけ使えます")):
+            _narrative_dialog(run)
     return run, "real" if real else "nominal"
 
 
@@ -177,6 +183,56 @@ def _header(run: Run, company: dict, state, base=None) -> None:
     elif company.get("anonymized"):
         chips += "　:violet-badge[:material/masks: モデル企業]"
     st.markdown(chips)
+
+
+@st.dialog("診断経緯の文章化", width="large")
+def _narrative_dialog(run: Run) -> None:
+    """構造化レポートから報告書の下書きを作り、読む・コピーする・保存する。材料が同じなら作り直さない。"""
+    from core import narrative
+    from core.docx_export import markdown_to_docx
+
+    ss = st.session_state
+    report = mock_engine.report_markdown(run)
+    nar = narrative.load(run)
+    regen = ss.pop("narrative_regen", False)
+    if regen or nar is None or nar.report_hash != narrative.report_hash(report):
+        engine = f"Gemini（{config.gemini_model()}）" if config.debate_mode() == "gemini" else "モック"
+        with st.spinner(f"{engine}で文章を書いています（数十秒かかることがあります）…"):
+            try:
+                nar = narrative.generate(run, report=report)
+            except Exception as e:   # 生成の失敗は画面に出し、診断の記録は変えない
+                st.error(f"文章化に失敗しました。もう一度「📝 診断経緯の文章化」を押してください。\n\n{type(e).__name__}: {e}",
+                         icon=":material/error:")
+                return
+    st.caption(f"生成：{nar.engine}　{nar.generated_at}　材料：この回次の診断レポート（指紋 {nar.report_hash}）")
+    st.warning(narrative.DRAFT_NOTE, icon=":material/edit_note:")
+    if nar.unverified_numbers:
+        st.error("材料のレポートにない数字が本文にあります（要確認）：" + "、".join(nar.unverified_numbers),
+                 icon=":material/rule:")
+    else:
+        st.caption(":material/verified: 数字の照合：本文の数字はすべて材料のレポートにあります")
+    doc = nar.document()
+    base = f"{run.company}_{run.run_id}_診断経緯"
+    c1, c2, c3 = st.columns(3)
+    try:
+        docx_bytes = markdown_to_docx(doc, f"{run.meta.label} 診断経緯（下書き）")
+    except ImportError:   # python-docx が入っていない環境
+        docx_bytes = None
+        c1.caption("Word で保存するには python-docx が必要です（pip install python-docx）")
+    if docx_bytes is not None:
+        c1.download_button("Word（.docx）で保存", docx_bytes, file_name=f"{base}.docx", width="stretch",
+                           icon=":material/description:", key="nar_docx",
+                           mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    c2.download_button("Markdown（.md）で保存", doc, file_name=f"{base}.md", mime="text/markdown", width="stretch",
+                       icon=":material/download:", key="nar_md")
+    if c3.button("作り直す", width="stretch", icon=":material/refresh:", key="nar_regen"):
+        ss.narrative_regen = True
+        st.rerun(scope="fragment")
+    t1, t2 = st.tabs(["読む", "コピー用（右上のボタンで全文をコピー）"])
+    with t1:
+        st.markdown(nar.text)
+    with t2:
+        st.code(doc, language="markdown", wrap_lines=True)
 
 
 def _goal_banner(run: Run, session, state) -> None:
