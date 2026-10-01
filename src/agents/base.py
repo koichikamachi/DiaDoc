@@ -292,7 +292,7 @@ def context_text(state: DebateState, ctx: DebateContext, recent: int = 14) -> st
              f"# 対象：{ctx.display_name}" + ("（架空モデル）" if ctx.fictional else ""),
              f"決算期：{ctx.fin.fiscal_period if ctx.fin else '—'}　単位：千円",
              f"現在：第{state.round}ラウンド、フェーズ {state.phase}", "",
-             "## 主要な数字（出典）", *_figures(ctx), "",
+             "## 主要な数字（資料名と頁）", *_figures(ctx), "",
              "## 資金の計算根拠（プログラムが計算。変えられない）", *[f"- {b}" for b in state.monitor.base.basis], "",
              *_monitor_lines(state.monitor, "資金の監視指標（通過した提案だけを反映）"), ""]
     if pending_bridges(state):
@@ -304,7 +304,7 @@ def context_text(state: DebateState, ctx: DebateContext, recent: int = 14) -> st
               "- 試した：" + ("・".join(tried) or "まだない"),
               "- 未着手：" + ("・".join(lv for lv in LEVERS if lv not in tried) or "なし（4つすべて試した）"), ""]
     lines += _real_bs_lines(ctx)
-    lines += ["## 引用できる資料（出典の資料名はこの中から、頁付きで）", *[f"- {d}" for d in sorted(ctx.registry)], ""]
+    lines += ["## 引用できる資料（根拠に挙げる資料名はこの中から、頁付きで）", *[f"- {d}" for d in sorted(ctx.registry)], ""]
     from core.untrusted import wrap
 
     for name, text in ctx.materials.items():
@@ -318,7 +318,7 @@ def context_text(state: DebateState, ctx: DebateContext, recent: int = 14) -> st
     if msgs:
         lines.append("## これまでの発言（新しいものが下）")
         for m in msgs:
-            src = "、".join(s.label() for s in m.sources) or "出典なし"
+            src = "、".join(s.label() for s in m.sources) or "根拠なし"
             lines.append(f"[{m.id}｜第{m.round}R｜{m.speaker}｜{m.action}] {m.text}（{src}）")
             if m.bridges:
                 lines.append("   因果ブリッジ：" + "／".join(
@@ -333,8 +333,9 @@ def context_text(state: DebateState, ctx: DebateContext, recent: int = 14) -> st
 # ---------------------------------------------------------------------------
 COMMON_RULES_TEMPLATE = """あなたは経営診断の論争に参加する専門家の一人です。守るべき規律：
 1. 数字は、文脈に示された資料・数字だけを使う。資料にない数字を作らない。金額は千円。
-2. 主張には必ず出典（引用できる資料の一覧にある資料名と頁）を付ける。一覧にない資料名は審理に使われない。
-   発言に書いた数字は、その数字が実際に書かれている頁を出典にする（ヒアリングメモの数字なら、ヒアリングメモの【p.N】）。プログラムが照合し、別の頁にある数字を取り違えて引用すると差し戻される。
+2. 主張には必ず、それを支える客観的な根拠や裏付けデータ（引用できる資料の一覧にある資料名と頁）を付ける。
+   根拠のない主張は「退け（主張を支える根拠が示されていません）」になる。一覧にない資料名は審理に使われない。
+   発言に書いた数字は、その数字が実際に書かれている頁を根拠に挙げる（ヒアリングメモの数字なら、ヒアリングメモの【p.N】）。プログラムが照合し、別の頁にある数字を取り違えて引用すると差し戻される。
 3. 主張には「何が観察されれば決着するか」（決着条件）を具体的に書く。「なし」「不明」は差し戻される。
 4. 相手に同意するだけの発言はしない。譲歩するときも、条件と数字を示す（馴れ合いの防止）。
 5. 資金の監視指標とフェーズはプログラムが計算・判定する。あなたはそれを変えられないし、反論の材料として使ってよい。

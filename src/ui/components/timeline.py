@@ -141,7 +141,7 @@ def comparison_html(m: DebateMessage, runway: float | None) -> str:
                 else '<span class="dd-verdict dd-rej">✕ 残余月数を超える</span>')))),
         ("主なリスク", lambda a: "<br>".join("・" + html.escape(x) for x in a.risks) or "—"),
         ("決め手になる事実", lambda a: html.escape(a.deciding_fact or "—")),
-        ("出典", lambda a: "、".join(html.escape(x.label()) for x in a.sources) or "—"),
+        ("根拠", lambda a: "、".join(html.escape(x.label()) for x in a.sources) or "—"),
     ]
     head = "".join(f"<th>{html.escape(a.name)}</th>" for a in m.comparison)
     body = "".join(f"<tr><th>{k}</th>" + "".join(f"<td>{f(a)}</td>" for a in m.comparison) + "</tr>"
@@ -186,7 +186,7 @@ def _card(m: DebateMessage, verdicts: dict, counted: dict, runway: float | None 
                 st.markdown(rest.replace("\n", "  \n"))
         details = []
         if m.sources and m.speaker != "judge":
-            details.append("**出典**　" + "、".join(s.label() for s in m.sources))
+            details.append("**根拠**　" + "、".join(s.label() for s in m.sources))
         if m.settle_condition:
             details.append("**決着条件**　" + m.settle_condition)
         if v and v[1]:

@@ -155,3 +155,11 @@ def test_review_ignores_incomplete_sources_when_a_valid_one_exists():
 def test_parse_source(text, file, page):
     s = parse_source(text)
     assert (s.file, s.page) == (file, page)
+
+
+def test_reject_reason_says_evidence_not_citation():
+    """退けの理由は「出典」ではなく、主張を支える根拠（客観的な裏付け）がないことを言う。"""
+    r = review_claim(Claim(speaker="growth", text="増収は自社ブランド力の表れ", settle_condition="自社製品売上の前期比"))
+    assert r.verdict == "退け" and r.reasons == ["主張を支える根拠が示されていません"]
+    from agents.base import COMMON_RULES_TEMPLATE
+    assert "客観的な根拠や裏付けデータ" in COMMON_RULES_TEMPLATE and "必ず出典" not in COMMON_RULES_TEMPLATE

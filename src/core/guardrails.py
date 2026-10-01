@@ -1,7 +1,7 @@
 """決定論的なガードレール（LLMを使わない部分）。
 
 1. 検算ゲート: 読み取った財務数値の整合性を機械的に確かめ、不一致があれば論争に進ませない。
-2. 形式審査: 主張に出典（ファイルと頁）と決着条件があるかを機械的に判定する。
+2. 形式審査: 主張に根拠（資料名と頁）と決着条件があるかを機械的に判定する。
 3. 因果ブリッジの形式審査: 定性の主張が「科目・金額・月数」で数字につながっているか。
 4. 膠着の検知、論点アジェンダの上限、フェーズ遷移の判定（Judge は判定を宣言・説明するだけ）。
 
@@ -277,7 +277,7 @@ TRIVIAL_SETTLE = {"", "なし", "無し", "不明", "特になし", "-", "―", 
 def review_claim(claim: Claim) -> ReviewResult:
     """審判の形式審査。中身の賛否には立ち入らない。
 
-    1. 出典（ファイルと頁の両方）がひとつもない → 退け
+    1. 根拠（資料名と頁の両方）がひとつもない → 退け（主張を支える根拠が示されていません）
     2. 決着条件（何が観察されれば決着するか）がない → 差し戻し
     3. 両方そろう → 通過（中身の審理へ）
     """
@@ -286,17 +286,17 @@ def review_claim(claim: Claim) -> ReviewResult:
     reasons: list[str] = []
     if not valid:
         if incomplete:
-            reasons.append("出典に書類名または頁が欠けています：" + "、".join(s.label() for s in incomplete))
+            reasons.append("根拠に資料名または頁が欠けています：" + "、".join(s.label() for s in incomplete))
         else:
-            reasons.append("出典が示されていません")
+            reasons.append("主張を支える根拠が示されていません")
         return ReviewResult(verdict="退け", reasons=reasons)
     settle = (claim.settle_condition or "").strip()
     if settle.lower() in TRIVIAL_SETTLE:
         reasons.append("何が観察されれば決着するか（決着条件）が示されていません")
         return ReviewResult(verdict="差し戻し", reasons=reasons, valid_sources=valid)
-    reasons.append("出典と決着条件がそろっています。中身の審理に進みます")
+    reasons.append("根拠と決着条件がそろっています。中身の審理に進みます")
     if incomplete:
-        reasons.append("ただし不完全な出典は審理に使いません：" + "、".join(s.label() for s in incomplete))
+        reasons.append("ただし資料名か頁が欠けた根拠は審理に使いません：" + "、".join(s.label() for s in incomplete))
     return ReviewResult(verdict="通過", reasons=reasons, valid_sources=valid)
 
 

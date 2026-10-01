@@ -125,8 +125,8 @@ def _mixups(text: str, cited: list[Page], index: dict[tuple[str, str], Page], se
             continue                         # どこにもない数字は、計算した数字とみなす
         seen.add(f.raw)
         where = "、".join(pg.label() for pg in elsewhere[:2]) + ("ほか" if len(elsewhere) > 2 else "")
-        problems.append(f"出典の取り違え：「{f.raw}」は引用された{'・'.join(pg.label() for pg in cited)}にはなく、"
-                        f"{where}にあります。出典を直してください")
+        problems.append(f"根拠の頁の取り違え：「{f.raw}」は引用された{'・'.join(pg.label() for pg in cited)}にはなく、"
+                        f"{where}にあります。根拠の頁を直してください")
     return problems
 
 

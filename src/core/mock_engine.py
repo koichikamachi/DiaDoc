@@ -219,7 +219,7 @@ def apply_intervention(run: Run, text: str) -> list[dict]:
         added.append(_msg("judge", "形式審査",
                           f"介入を受理しました。形式審査の結果は「{review.verdict}」です（{review.reasons[0]}）。"
                           "事実の主張としては審理できないため、「前提条件」として登録します。"
-                          "主張として審理を求める場合は、出典（書類と頁）と「何が観察されれば決着するか」を添えてください。",
+                          "主張として審理を求める場合は、主張を支える根拠（資料名と頁）と「何が観察されれば決着するか」を添えてください。",
                           ruling="登録"))
 
     run.write("debate_log.json", debate + added)
@@ -635,7 +635,7 @@ def handle_upload(company: str, filename: str, content: bytes, extractor=None) -
     elif touched:
         added += [_msg(w, "新事実", t, ruling=rl) for w, t, rl in FOLLOWUPS.get(doc_type, [])]
     else:
-        added.append(_msg("judge", "新事実", "関連するデータ請求はありません。論点にするかどうかは、提出者の説明（出典と決着条件）を待ちます。",
+        added.append(_msg("judge", "新事実", "関連するデータ請求はありません。論点にするかどうかは、提出者の説明（根拠と決着条件）を待ちます。",
                           ruling="保留"))
 
     if doc_type == "品目別損益":

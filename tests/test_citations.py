@@ -66,7 +66,7 @@ def test_formal_review_sends_back_a_mixup(ctx):
                       sources=[S(FS, "3")], settle_condition="10月の単価交渉の結果")
     assert formal_review(m, st, ctx.registry).verdict == "通過"                 # 照合なし＝以前の挙動
     r = formal_review(m, st, ctx.registry, ctx.citation_index())
-    assert r.verdict == "差し戻し" and "出典の取り違え" in r.reasons[0]
+    assert r.verdict == "差し戻し" and "根拠の頁の取り違え" in r.reasons[0]
 
 
 # ---------------------------------------------------------------------------

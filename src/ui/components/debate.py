@@ -30,7 +30,7 @@ def _render_message(m: dict) -> None:
         st.markdown(m["text"])
         meta = []
         if m.get("sources"):
-            meta.append("出典：" + _sources_label(m["sources"]))
+            meta.append("根拠：" + _sources_label(m["sources"]))
         claim = m.get("claim") or {}
         if claim.get("settle_condition"):
             meta.append("決着条件：" + claim["settle_condition"])

@@ -50,7 +50,7 @@ def formal_review(msg: DebateMessage, state: DebateState, registry: set[str], ci
     real = [s for s in msg.sources if (s.file or "") in registry]
     unknown = [s for s in msg.sources if (s.file or "") not in registry]
     if unknown:
-        reasons_pre.append("資料一覧にない出典は審理に使いません：" + "、".join(s.label() for s in unknown))
+        reasons_pre.append("資料一覧にない資料を根拠にした部分は審理に使いません：" + "、".join(s.label() for s in unknown))
     checked = msg.model_copy(update={"sources": real})
     r = g.review_debate_message(checked)
     reasons = reasons_pre + r.reasons
