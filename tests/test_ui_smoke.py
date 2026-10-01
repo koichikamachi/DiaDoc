@@ -432,3 +432,25 @@ def test_duplicate_upload_can_be_withdrawn_from_the_dock(data):
     assert not (run.path / "inputs" / "勘定科目内訳明細書_2.pdf").exists()
     assert "勘定科目内訳明細書_2" not in [b.label for b in at.button if b.key and b.key.startswith("doc_")]
     assert any(e["action"] == "投入資料の取り下げ" for e in run.read("audit_log.json"))
+
+
+def test_request_waits_while_another_generation_is_in_flight(data):
+    """生成の最中に押されたボタンは、前の生成が終わるのを待つだけで、二本目の生成を始めない。"""
+    import sys
+    import threading
+
+    from core.graph import DebateSession
+    from core.runs import latest_run
+
+    at = _run()
+    tl = next(m for n, m in sys.modules.items() if n.endswith("components.timeline") and hasattr(m, "_INFLIGHT"))
+    run = latest_run(COMPANY)
+    lock = tl._INFLIGHT.setdefault(f"{run.company}/{run.run_id}", threading.Lock())
+    lock.acquire()
+    threading.Timer(0.3, lock.release).start()
+    at.session_state["dd_pending"] = {"action": "step", "nonce": 0, "speaker": None}
+    at.run()
+    assert not at.exception, at.exception
+    s = DebateSession(latest_run(COMPANY))
+    assert not s.started or not s.state().messages
+    assert not lock.locked()

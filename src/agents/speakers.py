@@ -58,6 +58,9 @@ class GeminiSpeaker:
 
     name = "gemini"
     RETRIES = 2   # 返答が壊れていたときに、裏で作り直させる回数
+    # 返答の長さの上限。ふつうの発言は千トークン前後。生成が暴走して「6000…」と桁を延々と書き続けると、
+    # 上限がなければ数万字・3分近く止まる（2026-10-01、乙精機ケース3で実例）。上限で打ち切れば十数秒で作り直しに移る
+    MAX_OUTPUT_TOKENS = 4096
 
     def __init__(self, client=None, model: str | None = None, temperature: float = 0.4):
         if client is None:
@@ -96,6 +99,7 @@ class GeminiSpeaker:
                     response_mime_type="application/json",
                     response_schema=schema,
                     temperature=self.temperature,
+                    max_output_tokens=self.MAX_OUTPUT_TOKENS,
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                 ),
             )

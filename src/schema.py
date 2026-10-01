@@ -211,8 +211,8 @@ class CausalBridge(BaseModel):
 
     account: str                       # 標準科目のキー（合計行・利益行は不可）
     direction: Literal["増", "減"]
-    amount: int = Field(description="科目の変動額（千円・正の整数・9桁以内）")   # 恒常的なら年額、一回限りならその額
-    cf_effect: int = Field(description="資金への効果（千円・整数・9桁以内）。正なら資金を生む")   # 恒常的なら年額
+    amount: int = Field(ge=-MAX_AMOUNT, le=MAX_AMOUNT, description="科目の変動額（千円・正の整数・9桁以内）")   # 恒常的なら年額、一回限りならその額
+    cf_effect: int = Field(ge=-MAX_AMOUNT, le=MAX_AMOUNT, description="資金への効果（千円・整数・9桁以内）。正なら資金を生む")   # 恒常的なら年額
     lead_months: int = Field(description="効果が出始めるまでの月数（0以上の整数）")
     recurring: bool = True             # 毎年続く効果（経費削減など）か、一回限り（資産売却など）か
     rationale: str = ""

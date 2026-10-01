@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import threading
 
 import streamlit as st
 
@@ -196,6 +197,19 @@ def _card(m: DebateMessage, verdicts: dict, counted: dict, runway: float | None 
                 st.markdown("\n\n".join(details))
 
 
+# 回次ごとの「生成中」の鍵（同じプロセスの中で共有）。生成の最中にボタンが押されると、Streamlit は画面を
+# 描き直すが、前の生成（Gemini の呼び出し）は裏で走り続ける。発言数はまだ変わっていないので nonce だけでは
+# 二重実行を防げない（2026-10-01、乙精機ケース3で同じ発言の生成が二本並走した）。鍵で一本に絞る。
+_INFLIGHT: dict[str, threading.Lock] = {}
+_INFLIGHT_GUARD = threading.Lock()
+
+
+def _inflight_lock(session: DebateSession) -> threading.Lock:
+    key = f"{session.run.company}/{session.run.run_id}"
+    with _INFLIGHT_GUARD:
+        return _INFLIGHT.setdefault(key, threading.Lock())
+
+
 def _request(action: str, nonce: int, can_pick: bool) -> None:
     """ボタンの受付。押された時点の発言数（nonce）と一緒に記録し、実行は本体で一度だけ行う。
 
@@ -214,19 +228,29 @@ def _execute_pending(session: DebateSession) -> None:
     req = ss.pop("dd_pending", None)
     if not req:
         return
-    state = session.state() if session.started else None
-    if (len(state.messages) if state else 0) != req["nonce"] or session.finished:
-        return   # 既に処理済み（連打）か、論争が閉じている
-    with st.spinner("発言を生成しています…"):
-        try:
-            if req["action"] == "gate":
-                session.run_round()
+    lock = _inflight_lock(session)
+    if not lock.acquire(blocking=False):
+        # 前の手がまだ生成中。終わるのを待ち、その結果を描く（この要求は実行しない）
+        with st.spinner("前の発言を生成しています。終わるまでお待ちください…"):
+            lock.acquire()
+        lock.release()
+        st.rerun()
+    try:
+        state = session.state() if session.started else None
+        if (len(state.messages) if state else 0) != req["nonce"] or session.finished:
+            return   # 既に処理済み（連打）か、論争が閉じている
+        with st.spinner("発言を生成しています…"):
+            try:
+                if req["action"] == "gate":
+                    session.run_round()
+                else:
+                    session.step(req["speaker"])
+            except Exception as e:  # Gemini の失敗など。状態は進んでいないので再試行できる
+                ss.debate_error = f"{type(e).__name__}: {e}"
             else:
-                session.step(req["speaker"])
-        except Exception as e:  # Gemini の失敗など。状態は進んでいないので再試行できる
-            ss.debate_error = f"{type(e).__name__}: {e}"
-        else:
-            ss.debate_error = None
+                ss.debate_error = None
+    finally:
+        lock.release()
     st.rerun()   # サイドバーなど、先に描いた部分も新しい状態で描き直す
 
 

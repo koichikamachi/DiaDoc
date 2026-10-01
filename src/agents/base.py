@@ -28,6 +28,7 @@ from schema import (
     Phase,
     SourceRef,
     TriageOption,
+    MAX_AMOUNT,
     bounded_amount,
     stamp,
 )
@@ -63,7 +64,7 @@ class AgentTurn(BaseModel):
     agenda_ops: list[AgendaOp] = Field(default_factory=list)
     target_message: str | None = Field(default=None, description="攻撃・防御の相手の発言ID（例：R1-growth-2）。攻撃なら疑義を向けた提案、防御なら受けた攻撃")
     challenged_account: str | None = Field(default=None, description="攻撃のとき：疑義を向けた因果ブリッジの科目キー（提案全体なら空）")
-    feasible_cf: int | None = Field(default=None, description="攻撃のとき：その科目（または提案全体）で現実的と見る資金効果（年・千円・0以上の整数・9桁以内）。まったく見込めないなら0")
+    feasible_cf: int | None = Field(default=None, ge=-MAX_AMOUNT, le=MAX_AMOUNT, description="攻撃のとき：その科目（または提案全体）で現実的と見る資金効果（年・千円・0以上の整数・9桁以内）。まったく見込めないなら0")
 
     @field_validator("feasible_cf")
     @classmethod

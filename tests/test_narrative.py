@@ -140,3 +140,11 @@ def test_sidebar_button_only_after_the_diagnosis_is_complete(data):
     btn.click().run()
     assert not at.exception, at.exception
     assert narrative.load(latest_run(CRISIS)) is not None                  # 押すと下書きが作られて保存される
+
+
+def test_prompt_forbids_writing_events_that_did_not_happen():
+    """介入・確定が記録に「なし」なのに「介入を確認したところ」と書かせない（乙精機ケース3の下書きで実例）。"""
+    from core.narrative import system_prompt
+
+    p = system_prompt("1")
+    assert "行われたかのような書き方をしない" in p and "介入と確定判断を行った）" not in p

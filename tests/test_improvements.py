@@ -229,6 +229,7 @@ class _Client:
 
     def generate_content(self, **kw):
         self.calls += 1
+        self.config = kw.get("config")
         return _Resp(self.texts.pop(0))
 
 
@@ -286,3 +287,24 @@ def test_absurd_amounts_are_rejected():
 def test_error_message_names_the_button():
     src = (ROOT / "src/ui/components/timeline.py").read_text(encoding="utf-8")
     assert "もう一度「▶ 1手進める」を押すと" in src
+
+
+def test_output_is_capped_so_a_runaway_ends_quickly():
+    """桁の暴走（6000…）が数万字・3分続かないよう、返答の長さに上限を付ける。上限で切れた返答は作り直す。"""
+    from agents.base import AgentTurn
+
+    truncated = '{"action": "攻撃", "text": "過大", "feasible_cf": 6' + "0" * 300     # 上限で途中で切れた返答
+    sp = _speaker([truncated, GOOD])
+    out = sp.generate(_Agent(), "sys", "user", AgentTurn, _State(), _Ctx())
+    assert out.feasible_cf == 6000 and sp.client.calls == 2
+    assert sp.client.config.max_output_tokens == sp.MAX_OUTPUT_TOKENS <= 8192
+
+
+def test_amount_bounds_are_in_the_schema_given_to_gemini():
+    from agents.base import AgentTurn
+
+    s = AgentTurn.model_json_schema()
+    fc = s["properties"]["feasible_cf"]["anyOf"][0]
+    assert fc["maximum"] == 999_999_999
+    br = CausalBridge.model_json_schema()["properties"]
+    assert br["amount"]["maximum"] == br["cf_effect"]["maximum"] == 999_999_999
