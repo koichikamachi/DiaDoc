@@ -483,3 +483,27 @@ def test_rename_refuses_an_empty_name(data):
 
     with pytest.raises(ValueError):
         rename_company(COMPANY, "  ")
+
+
+def test_archive_hides_a_company_without_deleting_its_records(data):
+    """アーカイブは削除ではない。選択欄から外れるだけで、記録は残り、戻せる。"""
+    import json
+
+    from core.runs import company_dir, list_companies
+
+    at = _run()
+    at.text_input(key="nc_name").input("片づける会社")
+    at.button(key="FormSubmitter:new_company-作成する").click().run()
+    company = at.session_state.company
+    at.button(key="archive_btn").click().run()
+    assert not at.exception, at.exception
+    assert at.session_state.company != company
+    assert company not in [c["dir"] for c in list_companies(include_archived=False)]
+    assert (company_dir(company) / "runs" / "run_001_initial" / "run.json").exists()     # 記録は残る
+    assert company not in at.selectbox(key="company").options
+    at.toggle(key="show_archived").set_value(True).run()
+    at.selectbox(key="company").set_value(company).run()
+    assert any("〔アーカイブ〕" in o for o in at.selectbox(key="company").options)
+    at.button(key="unarchive_btn").click().run()
+    meta = json.loads((company_dir(company) / "meta.json").read_text(encoding="utf-8"))
+    assert meta["archived"] is False and [h["action"] for h in meta["archive_history"]] == ["アーカイブ", "戻す"]

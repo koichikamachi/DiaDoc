@@ -75,12 +75,13 @@ def _write_json(path: Path, data) -> None:
 # ---------------------------------------------------------------------------
 # 企業
 # ---------------------------------------------------------------------------
-def list_companies() -> list[dict]:
+def list_companies(include_archived: bool = True) -> list[dict]:
+    """対象会社の一覧。include_archived=False ならアーカイブした会社を除く（選択欄の既定）。"""
     base = data_dir() / "companies"
     out = []
     for d in sorted(base.glob("*")) if base.exists() else []:
         meta = _read_json(d / "meta.json")
-        if meta:
+        if meta and (include_archived or not meta.get("archived")):
             meta["dir"] = d.name
             out.append(meta)
     return out
@@ -257,6 +258,25 @@ def rename_company(company: str, name: str, fictional: bool | None = None) -> di
     hist = list(meta.get("rename_history") or [])
     hist.append({"from": meta.get("display_name"), "to": display, "at": now_iso()})
     meta |= {"name": name, "display_name": display, "fictional": fic, "rename_history": hist}
+    _write_json(path, meta)
+    return meta
+
+
+def set_archived(company: str, archived: bool, reason: str = "") -> dict:
+    """対象会社をアーカイブする（一覧の既定表示から外す）／戻す。記録は一切消さない。
+
+    削除の代わりの仕組み。回次・論争・資料・監査証跡はそのまま残り、戻せば元どおり使える。
+    操作は meta.json の archive_history に積み上げて残す。
+    """
+    path = company_dir(company) / "meta.json"
+    meta = _read_json(path)
+    if not meta:
+        raise FileNotFoundError(f"{company} が見つかりません")
+    if bool(meta.get("archived")) == bool(archived):
+        return meta
+    hist = list(meta.get("archive_history") or [])
+    hist.append({"action": "アーカイブ" if archived else "戻す", "at": now_iso(), "reason": (reason or "").strip()})
+    meta |= {"archived": bool(archived), "archive_history": hist}
     _write_json(path, meta)
     return meta
 

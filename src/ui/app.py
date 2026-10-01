@@ -76,6 +76,19 @@ def _on_rename_company() -> None:
     ss.flash = "会社名を変えました（会社のIDとこれまでの記録はそのままです）"
 
 
+def _on_archive(archived: bool) -> None:
+    from core.runs import set_archived
+
+    ss = st.session_state
+    set_archived(ss.company, archived)
+    if archived and not ss.get("show_archived"):
+        rest = [c["dir"] for c in list_companies(include_archived=False)]
+        if rest:
+            ss.company = rest[0]
+    ss.flash = ("アーカイブしました。記録は消えていません。サイドバーの「アーカイブも表示」から選べば、いつでも戻せます"
+                if archived else "アーカイブから戻しました")
+
+
 def _on_new_run() -> None:
     ss = st.session_state
     run = mock_engine.start_manual_run(ss.company)
@@ -92,11 +105,13 @@ def sidebar() -> tuple[Run, str]:
         st.markdown(f"### :material/stethoscope: {config.APP_SHORT}")
         st.caption(config.APP_TAGLINE)
 
-        companies = list_companies()
+        companies = list_companies(include_archived=bool(ss.get("show_archived")))
         if not companies:
             st.error("data/companies に企業がありません")
             st.stop()
-        names = {c["dir"]: c.get("display_name", c["dir"]) for c in companies}
+        if ss.get("company") not in [c["dir"] for c in companies]:
+            ss.company = companies[0]["dir"]
+        names = {c["dir"]: ("〔アーカイブ〕" if c.get("archived") else "") + c.get("display_name", c["dir"]) for c in companies}
         st.selectbox("対象企業", list(names), format_func=names.get, key="company")
         with st.popover("＋ 新しい対象会社", icon=":material/add_business:", width="stretch"):
             with st.form("new_company", clear_on_submit=False, border=False):
@@ -119,6 +134,14 @@ def sidebar() -> tuple[Run, str]:
                 st.markdown(f":red[{ss.rename_error}]")
             st.caption(f"会社のID（{cur.get('company_id') or ss.company.split('_', 1)[0]}）と、これまでの回次・論争・資料はそのままです。"
                        "変える前の名前は記録に残ります")
+        if cur.get("archived"):
+            st.button("アーカイブから戻す", icon=":material/unarchive:", width="stretch", key="unarchive_btn",
+                      on_click=_on_archive, args=(False,))
+        else:
+            with st.popover("アーカイブ（一覧から外す）", icon=":material/archive:", width="stretch"):
+                st.caption("この会社を選択欄から外します。回次・論争・資料・監査証跡は消えず、いつでも戻せます")
+                st.button("アーカイブする", type="primary", key="archive_btn", on_click=_on_archive, args=(True,))
+        st.toggle("アーカイブも表示", key="show_archived")
 
         runs = list_runs(ss.company)
         ids = [r.run_id for r in runs]
