@@ -230,6 +230,83 @@ def _attacks(state) -> list[str]:
     return out
 
 
+def _meta(run) -> dict:
+    from core.runs import company_dir
+
+    try:
+        return json.loads((company_dir(run.company) / "meta.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _plain_name(run) -> str:
+    """文章の中で呼ぶ会社名（ID や「架空モデル」の注記を付けない名前）。"""
+    return _meta(run).get("name") or run.company
+
+
+def abstract(run, fin, state, base, o, requests: list[dict]) -> list[str]:
+    """要約（新聞のリード、論文のアブストラクトに当たる）。本文を読まなくても、何の診断で、結論は何で、
+    なぜそうなり、次に何が要るかが分かるように、プログラムが数字から組み立てる。"""
+    from core.digest import triage
+    from core.metrics import tri
+
+    name = _plain_name(run)
+    period = f"{fin.fiscal_period}の決算書" if fin is not None and fin.fiscal_period else "決算書"
+    from state import DEFAULT_MISSION
+
+    ms = state.mission if state is not None and state.mission else (_meta(run).get("mission") or DEFAULT_MISSION)
+    mission = f"「{ms}」を目的として"
+    S = [f"本レポートは、{name}の{period}をもとに、{mission}行った{run.meta.label}の結果である。"]
+    if fin is None or base is None:
+        S.append("財務データがまだないため、資金の診断はできていない。財務書類の投入が必要である。")
+        return ["".join(S), ""]
+    started = state is not None and bool(state.messages)
+    if o is not None:
+        S.append(f"結論は「{o.kind}」である。")
+    elif started:
+        S.append(f"論争は第{state.round}ラウンドの途中であり、結論はまだ出ていない（途中経過）。")
+    else:
+        S.append("論争はまだ始まっておらず、結論は出ていない。")
+
+    m = live_monitor(state, base) if state is not None else None
+    acc = m.accumulated_recovery_cf if m else 0
+    gap = m.gap if m else None
+    if base.shortage_pending:
+        ref = (f"（仮に10年均等返済とすると、返済後の資金収支は年{tri(base.ref_free_cf)}千円）"
+               if base.ref_free_cf is not None else "")
+        S.append(f"借入金の毎年の返済額が決算書から確かめられず、資金が足りるかどうかを判定できないためである{ref}。"
+                 if o is not None else f"借入金の毎年の返済額が決算書から確かめられず、資金が足りるかどうかは判定保留である{ref}。")
+    elif base.required_cf:
+        S.append(f"借入金を返済すると、資金は年{base.required_cf:,}千円不足する。")
+        if o is not None and o.kind == SUFFICIENT:
+            S.append(f"審査を通過した改善策（年{acc:,}千円）で、この不足を埋められる見込みとなった。")
+        elif o is not None and o.kind == TRIAGE:
+            S.append(f"改善策では埋めきれず（なお年{(gap or 0):,}千円不足）、会社をどう残すかの道を選ぶ段階に入った。")
+        elif started:
+            S.append(f"審査を通過した改善策は年{acc:,}千円で、なお年{(gap or 0):,}千円届いていない。")
+    elif base.free_cf is not None:
+        S.append(f"借入金を返済した後も資金収支は年{tri(base.free_cf)}千円で、資金の不足は示されていない。")
+
+    if started and not (base.required_cf and o is not None and o.kind in (SUFFICIENT, TRIAGE)):
+        runs_, shots_ = _counted_measures(state)
+        if runs_ or shots_:
+            S.append("審査を通過した主な施策は、" + "、".join(t for t, *_ in (runs_ + shots_)[:2]) + "である。")
+        else:
+            S.append("審査を通過した改善策はなかった。")
+
+    t = triage(state) if o is not None and o.kind == TRIAGE else None
+    todo = [r for r in requests if r.get("status") != "解消"]
+    must = [r["item"] for r in todo if r.get("required")]
+    if t:
+        S.append("示された道は" + "・".join(x.name for x in t.options[:3]) + "で、どれを選ぶかは経営者が決める。")
+    elif must:
+        S.append("判定を確定させるには、" + "・".join(must[:2]) + "の提出が必要である。")
+    elif todo:
+        S.append("残るデータ請求は" + "".join(f"「{r['item']}」" for r in todo[:2])
+                 + (f"など{len(todo)}件" if len(todo) > 2 else "") + "である。")
+    return ["".join(S), ""]
+
+
 def report_markdown(run) -> str:
     """回次の全データを統合した診断レポート。論争の途中でも、その時点の内容で作る。"""
     from core import adjust, repayment
@@ -259,6 +336,8 @@ def report_markdown(run) -> str:
     if run.frozen:
         L.append(f"- 凍結：{run.meta.frozen_at}")
     L.append("")
+
+    L += ["## 要約", "", *abstract(run, fin, state, base, o, requests)]
 
     # 1. エグゼクティブサマリー -------------------------------------------------
     L += ["## 1. エグゼクティブサマリー", ""]

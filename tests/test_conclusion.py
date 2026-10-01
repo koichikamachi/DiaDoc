@@ -208,3 +208,17 @@ def test_sidebar_download_and_header_use_the_new_wording(data):
     assert any("トリアージを宣告しました" in e for e in errs)                        # ゴールテープ（赤系）
     labels = at.selectbox(key="run_select__" + CRISIS)
     assert "診断完了・トリアージ宣告" in labels.format_func(labels.value)
+
+
+def test_report_opens_with_an_abstract_that_stands_alone(data):
+    """冒頭の「要約」だけで、何の診断か・結論・理由・次に要ることが分かる（新聞のリード、論文の要約）。"""
+    run = latest_run(CRISIS)
+    md = report_markdown(run)
+    head = md[md.index("## 要約"):md.index("## 1. エグゼクティブサマリー")]
+    assert "論争はまだ始まっておらず" in head and "年122,090千円不足" in head
+    _finish(DebateSession(run))
+    md = report_markdown(run)
+    head = md[md.index("## 要約"):md.index("## 1. エグゼクティブサマリー")]
+    assert "第62期" in head and "「資金ショートの回避と持続的再建方針の策定」を目的として" in head
+    assert "結論は「トリアージ宣告」である。" in head and "年122,090千円不足" in head
+    assert "（一）雇用死守型の第二会社方式" in head and "経営者が決める" in head

@@ -253,3 +253,12 @@ def test_confirmation_from_the_matrix_screen(data):
     assert msgs and msgs[0].speaker == "human" and "約定返済額を確定します" in msgs[0].text
     html_ = " ".join(str(h.proto.body) for h in at.get("html"))
     assert "判定保留" not in html_                                                   # 右の欄もすぐ切り替わる
+
+
+def test_abstract_says_why_the_judgement_is_pending(data):
+    company = create_company("丁工業", fictional=True)
+    run, _, _ = handle_upload(company, "丁.xlsx", b"x", extractor=_Fixed(_lines(sga_reported=49_800)))
+    md = report_markdown(run)
+    head = md[md.index("## 要約"):md.index("## 1. エグゼクティブサマリー")]
+    assert "丁工業" in head and "返済額が決算書から確かめられず" in head
+    assert "借入金返済予定表の提出が必要である" in head

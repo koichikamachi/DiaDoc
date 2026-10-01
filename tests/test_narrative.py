@@ -148,3 +148,11 @@ def test_prompt_forbids_writing_events_that_did_not_happen():
 
     p = system_prompt("1")
     assert "行われたかのような書き方をしない" in p and "介入と確定判断を行った）" not in p
+
+
+def test_both_parts_open_with_a_summary():
+    from core.narrative import PART1_SECTIONS, PART2_SECTIONS, SUMMARY, system_prompt
+
+    assert PART1_SECTIONS[0] == PART2_SECTIONS[0] == SUMMARY == "要約"
+    p = system_prompt("1")
+    assert p.count("## 要約") == 2 and "論文の要約と同じ要領" in p
