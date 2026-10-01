@@ -454,3 +454,32 @@ def test_request_waits_while_another_generation_is_in_flight(data):
     s = DebateSession(latest_run(COMPANY))
     assert not s.started or not s.state().messages
     assert not lock.locked()
+
+
+def test_company_can_be_renamed_without_moving_its_records(data):
+    """名前を変えても、会社のIDとフォルダ（回次・論争・資料の鍵）は変わらない。前の名前は記録に残る。"""
+    import json
+
+    from core.runs import company_dir, list_companies
+
+    at = _run()
+    at.text_input(key="nc_name").input("乙精機_ケースA")
+    at.checkbox(key="nc_fictional").check()
+    at.button(key="FormSubmitter:new_company-作成する").click().run()
+    company = at.session_state.company
+    at.text_input(key=f"rn_name_{company}").input("乙精機_ケース3（注入テスト）")
+    at.button(key=f"FormSubmitter:rename_{company}-変更する").click().run()
+    assert not at.exception, at.exception
+    assert at.session_state.company == company                          # フォルダ名は同じ
+    meta = json.loads((company_dir(company) / "meta.json").read_text(encoding="utf-8"))
+    assert meta["name"] == "乙精機_ケース3（注入テスト）"
+    assert meta["display_name"] == f"{company[:4]}_乙精機_ケース3（注入テスト）（架空モデル）"
+    assert meta["rename_history"][0]["from"] == f"{company[:4]}_乙精機_ケースA（架空モデル）"
+    assert any(c["display_name"] == meta["display_name"] for c in list_companies())
+
+
+def test_rename_refuses_an_empty_name(data):
+    from core.runs import rename_company
+
+    with pytest.raises(ValueError):
+        rename_company(COMPANY, "  ")

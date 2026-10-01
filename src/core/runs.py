@@ -236,6 +236,31 @@ def _safe_name(name: str) -> str:
     return s[:40] or "company"
 
 
+def rename_company(company: str, name: str, fictional: bool | None = None) -> dict:
+    """対象会社の表示名を変える。会社のID（C008 など）とフォルダ名は変えない。
+
+    フォルダ名は回次・論争の途中状態（SQLite のスレッド名）・資料の保存先を結ぶ鍵なので、名前を変えても動かさない。
+    変える前の名前は meta.json の rename_history に積み上げて残す（書き換えない）。
+    """
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("会社名を入れてください")
+    path = company_dir(company) / "meta.json"
+    meta = _read_json(path)
+    if not meta:
+        raise FileNotFoundError(f"{company} が見つかりません")
+    fic = bool(meta.get("fictional")) if fictional is None else bool(fictional)
+    cid = meta.get("company_id") or company.split("_", 1)[0]
+    display = f"{cid}_{name}" + ("（架空モデル）" if fic else "")
+    if display == meta.get("display_name") and name == meta.get("name"):
+        return meta
+    hist = list(meta.get("rename_history") or [])
+    hist.append({"from": meta.get("display_name"), "to": display, "at": now_iso()})
+    meta |= {"name": name, "display_name": display, "fictional": fic, "rename_history": hist}
+    _write_json(path, meta)
+    return meta
+
+
 def create_company(name: str, industry: str = "", fictional: bool = False, mission: str = "") -> str:
     """新しい対象会社を作る。第1次分析（未開始・財務データなし）を用意し、会社のフォルダ名を返す。"""
     name = (name or "").strip()

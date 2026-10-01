@@ -63,6 +63,19 @@ def _on_new_company() -> None:
     ss.flash = "新しい対象会社を作りました。資料ドックから財務書類を投入してください"
 
 
+def _on_rename_company() -> None:
+    from core.runs import rename_company
+
+    ss = st.session_state
+    try:
+        rename_company(ss.company, ss.get(f"rn_name_{ss.company}", ""), ss.get(f"rn_fictional_{ss.company}"))
+    except (ValueError, FileNotFoundError) as e:
+        ss.rename_error = str(e)
+        return
+    ss.rename_error = None
+    ss.flash = "会社名を変えました（会社のIDとこれまでの記録はそのままです）"
+
+
 def _on_new_run() -> None:
     ss = st.session_state
     run = mock_engine.start_manual_run(ss.company)
@@ -96,6 +109,16 @@ def sidebar() -> tuple[Run, str]:
             if ss.get("new_company_error"):
                 st.markdown(f":red[{ss.new_company_error}]")
             st.caption("第1次分析（未開始）が作られます。最初の財務書類は、次の回次を開かずに第1次分析に入ります")
+        cur = next((c for c in companies if c["dir"] == ss.company), {})
+        with st.popover("名前を変える", icon=":material/edit:", width="stretch"):
+            with st.form(f"rename_{ss.company}", clear_on_submit=False, border=False):
+                st.text_input("会社名", value=cur.get("name", ""), key=f"rn_name_{ss.company}")
+                st.checkbox("架空モデル（実在の会社ではない）", value=bool(cur.get("fictional")), key=f"rn_fictional_{ss.company}")
+                st.form_submit_button("変更する", type="primary", on_click=_on_rename_company)
+            if ss.get("rename_error"):
+                st.markdown(f":red[{ss.rename_error}]")
+            st.caption(f"会社のID（{cur.get('company_id') or ss.company.split('_', 1)[0]}）と、これまでの回次・論争・資料はそのままです。"
+                       "変える前の名前は記録に残ります")
 
         runs = list_runs(ss.company)
         ids = [r.run_id for r in runs]
