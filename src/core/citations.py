@@ -79,7 +79,18 @@ def extract(text: str) -> list[Figure]:
 
 
 def _pages_of(ref: str | None) -> set[str]:
-    return set(re.findall(r"\d+", ref or ""))
+    """出典欄の頁の書き方から、索引の頁の候補を作る。
+
+    頁番号（「3」「3-4」）のほか、Excel の決算書では頁の代わりにシート名（「貸借対照表」）が入る。
+    数字だけを拾っていたため、シート名で引いた決算書の頁が「引用されていない」扱いになり、
+    同じ発言で面談メモも引いていると、決算書の数字まで「取り違え」として差し戻していた（2026-10-01、乙精機ケース3）。
+    """
+    ref = (ref or "").strip()
+    out = set(re.findall(r"\d+", ref))
+    name = re.sub(r"^[pP]\.?\s*", "", ref).strip()
+    if name:
+        out.add(name)
+    return out
 
 
 def build_index(fin: Financials | None, materials: dict[str, str]) -> dict[tuple[str, str], Page]:
@@ -140,15 +151,19 @@ def _inline(text: str, docs: list[str]) -> list[tuple[list[tuple[str, str]], str
     if not docs:
         return []
     names = "|".join(re.escape(d) for d in sorted(docs, key=len, reverse=True))
-    ref = re.compile(r"(" + names + r"|同)\s*p\.?\s*(\d+)")
+    # 頁は番号（p.3）のほか、Excel のシート名（p.貸借対照表）でもよい
+    ref = re.compile(r"(" + names + r"|同)\s*p\.?\s*([^\s、,，・）)】」]+)")
     out, last_doc, start = [], None, 0
     for g_start, g_end in _groups(text):
         group = text[g_start:g_end]
         refs = []
         for r in ref.finditer(group):
             doc = last_doc if r.group(1) == "同" else r.group(1)
+            pg = r.group(2)
+            if (num := re.match(r"\d+", pg)) is not None:
+                pg = num.group(0)            # 「p.3より」の「より」などを落とす
             if doc is not None:
-                refs.append((doc, r.group(2)))
+                refs.append((doc, pg))
                 last_doc = doc
         if not refs:
             continue

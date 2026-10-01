@@ -103,3 +103,25 @@ def test_real_gemini_memo_amount_cited_as_financials():
                                  "C001_sample_alpha:rebuild:1"])   # 括弧の中で数字の後に資料名
 def test_real_gemini_correct_citations_are_not_flagged(key):
     assert _real(key) == []
+
+
+def test_sheet_name_pages_count_as_cited():
+    """Excel の決算書はシート名が頁になる（p.貸借対照表）。面談メモと一緒に引いても、決算書の数字を取り違え扱いしない。
+    （2026-10-01、乙精機ケース3：長期借入金100,000千円が「面談メモ p.1 にない」として差し戻されていた）"""
+    from schema import Financials, LineItem
+
+    XL, MEMO3 = "乙精機_第10期_A_一致.xlsx", "乙精機_面談メモ"
+    fin = Financials(company_id="C9", fiscal_period="第10期", basis="単体", items={
+        "ltd": LineItem(statement="BS", section="固定負債", label="長期借入金", cur=100_000,
+                        source=SourceRef(file=XL, page="貸借対照表")),
+        "lab": LineItem(statement="CR", section="労務費", label="労務費", cur=60_000,
+                        source=SourceRef(file=XL, page="損益計算書")),
+    })
+    idx = c.build_index(fin, {MEMO3: "- 工場長：設備の老朽化で、年2回ほどライン停止が起きている。"})
+    text = ("年2回のライン停止（乙精機_面談メモ p.1）の事実のみ扱います。長期借入金100,000千円（乙精機_第10期_A_一致.xlsx p.貸借対照表）"
+            "は返済区分がなく、労務費60,000千円（同 p.損益計算書）の稼働ロスも疑われます。")
+    srcs = [S(XL, "貸借対照表"), S(XL, "損益計算書"), S(MEMO3, "1")]
+    assert c.check(text, srcs, idx) == []
+    # 本当の取り違え（決算書の数字を面談メモだけで引いた）は、引き続き捕まえる
+    probs = c.check("長期借入金100,000千円が重い（乙精機_面談メモ p.1）。", [S(MEMO3, "1")], idx)
+    assert probs and f"{XL} p.貸借対照表にあります" in probs[0]
