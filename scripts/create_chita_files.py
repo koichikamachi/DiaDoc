@@ -1,4 +1,4 @@
-"""知多精機株式会社（架空）のデモ用資料を作る：2期分の決算書（Excel）、ヒアリングメモ（Markdown）、動画シナリオ（Word）。
+"""知多精機株式会社（架空）のデモ用資料を作る：2期分の決算書（Excel）、ヒアリングメモ（Markdown）、借入金返済予定表（Markdown）、動画シナリオ（Word）。
 
 会社・金融機関はすべて架空（知多精機株式会社＝愛知県知多郡南知多町豊浜、メインバンク＝豊浜信用金庫）。
 人間の介入・確定の主体は「支援担当者」と呼ぶ（個人名・特定の士業名は書かない）。
@@ -13,7 +13,8 @@ from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import parse_xml
-from docx.oxml.ns import nsdecls
+from docx.oxml.ns import nsdecls, qn
+from docx.oxml import OxmlElement
 
 # 出力先：work/demo/chita_seiki/（git・イメージの対象外）
 OUT = Path(__file__).resolve().parents[1] / "work" / "demo" / "chita_seiki"
@@ -255,11 +256,13 @@ for ws in [ws_bs, ws_pl, ws_cr]:
 wb.save("Chita_Seiki_Financials_2Periods.xlsx")
 print("Saved Chita_Seiki_Financials_2Periods.xlsx")
 
-# 2. Markdown (Chita_Seiki_Qualitative_Interview_Memo.md)　本文は利用者が確定した第4版
+# 2. Markdown (Chita_Seiki_Qualitative_Interview_Memo.md)　本文は利用者が確定した第4版（冒頭に架空の断り書きを足した）
 md_text = """# 知多精機株式会社 経営診断ヒアリングおよび定性調査メモ
 
+> ※ このメモは、デモ用に作った架空のケースです。会社・金融機関・人物は、すべて実在しません。
+
 - **調査実施日**：2026年9月
-- **調査担当**：経営改善支援担当者（認定経営革新等支援機関）
+- **調査担当**：経営改善の支援担当者
 - **対象企業**：知多精機株式会社（愛知県知多郡南知多町豊浜）
 - **業種**：精密金属加工・NC切削加工業（資本金10,000千円、従業員18名）
 - **対象期**：第24期決算完了直後（年商242,000千円）
@@ -323,89 +326,182 @@ with open("Chita_Seiki_Qualitative_Interview_Memo.md", "w", encoding="utf-8") as
     f.write(md_text)
 print("Saved Chita_Seiki_Qualitative_Interview_Memo.md")
 
-# 3. Word (Chita_Seiki_Dynamism_Scenario.docx)
+# 3. 借入金返済予定表（Chita_Seiki_Loan_Repayment_Schedule.md）
+# 動画で「返済予定表を確かめて、年間の約定返済額を確定する」場面に使う、決算書の外にある証拠（架空）。
+# これはアプリに投入しない。支援担当者が目で確かめ、突合マトリクスの「支援担当者による確定」に金額と根拠を入れる。
+schedule_text = """# 借入金返済予定表（知多精機株式会社・第25期分）
+
+> ※ デモ用に作った架空の書類です。会社・金融機関は、すべて実在しません。
+
+- **借入先**：豊浜信用金庫
+- **借入の種類**：証書貸付（設備資金。5軸マシニングセンタ2基）
+- **第24期末の残高**：90,000千円
+- **返済の方法**：元金均等返済（毎月末）
+- **毎月の元金返済**：約833千円
+- **第25期の約定返済額（元金）**：年10,000千円
+- **第25期末の残高（予定）**：80,000千円
+
+| 期 | 期首残高 | 元金返済（年） | 期末残高 |
+|---|---:|---:|---:|
+| 第24期（実績） | 100,000 | 10,000 | 90,000 |
+| 第25期（予定） | 90,000 | 10,000 | 80,000 |
+| 第26期（予定） | 80,000 | 10,000 | 70,000 |
+
+（単位：千円。利息は別途）
+"""
+with open("Chita_Seiki_Loan_Repayment_Schedule.md", "w", encoding="utf-8") as f:
+    f.write(schedule_text)
+print("Saved Chita_Seiki_Loan_Repayment_Schedule.md")
+
+# 4. Word (Chita_Seiki_Dynamism_Scenario.docx)
+# 筋は一本：「資料が増えるたびに、診断が動く」。アプリの実際の動きに合わせて書く
+# （不足が出ただけではトリアージに入らない。計算と採否の判定はプログラム、読み取りと議論は Gemini）。
 doc = Document()
-for s in doc.sections:
-    s.top_margin = Inches(1.0)
-    s.bottom_margin = Inches(1.0)
-    s.left_margin = Inches(1.0)
-    s.right_margin = Inches(1.0)
+for sec in doc.sections:
+    sec.top_margin = sec.bottom_margin = sec.left_margin = sec.right_margin = Inches(1.0)
 
 COLOR_NAVY = RGBColor(31, 73, 125)
 COLOR_GRAY = RGBColor(89, 89, 89)
-COLOR_RED = RGBColor(192, 0, 0)
-COLOR_GREEN = RGBColor(0, 128, 0)
+FONT = "Meiryo"   # 利用者の既定の Word 書式：全文メイリオ、見出し13pt、本文10.5pt、表内9pt、ヘッダーに標題、フッターに頁番号
 
-p_title = doc.add_paragraph()
-p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = p_title.add_run("DiaDoc 審査員向けデモ動画シナリオ")
-r.font.name, r.font.size, r.font.bold, r.font.color.rgb = "Yu Gothic", Pt(20), True, COLOR_NAVY
 
-p_sub = doc.add_paragraph()
-p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p_sub.paragraph_format.space_after = Pt(20)
-r = p_sub.add_run("定性×定量が織りなす「診断のダイナミズム」演出設計書（知多精機株式会社〔愛知県知多郡南知多町豊浜〕編）")
-r.font.name, r.font.size, r.font.color.rgb = "Yu Gothic", Pt(11), COLOR_GRAY
+def run(par, text, size=10, bold=False, color=None):
+    r = par.add_run(text)
+    r.font.name, r.font.size, r.font.bold = FONT, Pt(size), bold
+    r._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), FONT)   # 日本語の字形にも同じフォントを当てる
+    if color is not None:
+        r.font.color.rgb = color
+    return r
 
-# Callout
-tbl_call = doc.add_table(rows=1, cols=1)
-tbl_call.alignment = WD_TABLE_ALIGNMENT.CENTER
-c_call = tbl_call.cell(0, 0)
-c_call.width = Inches(6.5)
-c_call._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="F2F5F8"/>'.format(nsdecls('w'))))
-c_call._tc.get_or_add_tcPr().append(parse_xml(r'''<w:tcBorders {}><w:top w:val="none"/><w:left w:val="single" w:sz="24" w:space="0" w:color="1F497D"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders>'''.format(nsdecls('w'))))
-p_c = c_call.paragraphs[0]
-r1 = p_c.add_run("【本資料の設計思想と真正性（知財クリアランス）】\n")
-r1.font.name, r1.font.size, r1.font.bold, r1.font.color.rgb = "Yu Gothic", Pt(10), True, COLOR_NAVY
-r2 = p_c.add_run("本ケースは、認定経営革新等支援機関の実務知見に基づき、製造業現場で頻出する構造的課題（B/S借入区分欠落・段取り替え非効率・現場職人の反発）を抽象化して完全新規に合成した「オリジナル架空ケース（Synthetic Data）」です。第三者著作権および守秘義務リスクを完全に排除しています。")
-r2.font.name, r2.font.size = "Yu Gothic", Pt(9.5)
-doc.add_paragraph().paragraph_format.space_after = Pt(10)
 
-def add_sec(h_text):
-    p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(14)
-    p.paragraph_format.space_after = Pt(4)
-    r = p.add_run(h_text)
-    r.font.name, r.font.size, r.font.bold, r.font.color.rgb = "Yu Gothic", Pt(13), True, COLOR_NAVY
+def heading(text):
+    par = doc.add_paragraph()
+    par.paragraph_format.space_before, par.paragraph_format.space_after = Pt(14), Pt(4)
+    run(par, text, 13, True, COLOR_NAVY)
 
-add_sec("1. 企画意図：なぜ「定性データ」を入れるとダイナミズムが生まれるのか？")
-p_b = doc.add_paragraph()
-p_b.paragraph_format.line_spacing = 1.15
-r = p_b.add_run("財務諸表の数値だけを動かしていると、DiaDocの高度な数理検算は伝わっても、審査員には「出来のよいExcel電卓」に見えてしまうリスクがあります。\n"
-              "しかし、ここに「社長の焦り」「ベテラン工場長の反発」「銀行支店長の冷たい一言」といった定性データが投入されることで、システムは単なる計算機から『生きた意思決定法廷』へと昇華します。\n"
-              "・Prof. Growth（成長派）は、若手エンジニアの改善提案を引用して果敢に攻める。\n"
-              "・Dr. Rebuild（外科手術派）は、工場長の職人気質と精度狂いリスクを突いて冷徹にブレーキをかける。\n"
-              "・Moderator Judge（審判）は、感情論を排し、客観的証拠に基づき減額採択（▽）を言い渡す。\n"
-              "この対立と調停のプロセスこそが、審査員を惹きつけるDiaDoc最大の魅力です。")
-r.font.name, r.font.size = "Yu Gothic", Pt(10)
 
-add_sec("2. 審査員向けデモ動画（3分間）構成タイムライン")
-tbl_t = doc.add_table(rows=1, cols=4)
-tbl_t.alignment = WD_TABLE_ALIGNMENT.CENTER
-headers_t = ["時間", "フェーズ", "画面アクション（実機操作）", "ナレーション・演出の急所"]
-for i, h in enumerate(headers_t):
-    tbl_t.rows[0].cells[i].text = h
-    tbl_t.rows[0].cells[i]._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="1F497D"/>'.format(nsdecls('w'))))
-    p = tbl_t.rows[0].cells[i].paragraphs[0]
-    p.runs[0].font.name, p.runs[0].font.size, p.runs[0].font.bold = "Yu Gothic", Pt(9.5), True
-    p.runs[0].font.color.rgb = RGBColor(255, 255, 255)
+def body(text):
+    par = doc.add_paragraph()
+    par.paragraph_format.space_before = Pt(0.5)
+    run(par, text, 10.5)
 
-timeline_data = [
-    ("0:00 - 0:30\n(30秒)", "導入\n課題提起", "一般的なチャットAIに赤字相談をして楽観的なハルシネーションが出ている画面スライド。", "「生成AIは経営者を心地よくさせるイエスマンになりがちです。しかし現場の決算書には欠落があり、資金ショート直前の企業でAIのハルシネーションは致命傷になります」"),
-    ("0:30 - 1:00\n(30秒)", "基本構造\nAI統治", "DiaDocの全体画面。数理統治DDFゲートと対立エージェント（Growth vs Rebuild）の構造図。", "「DiaDocはAIの迎合を冷徹に防衛するAI統治機構です。計算は1円もLLMに任せずDDFが数理統治し、現場派と外科手術派が対立仮説を戦わせます」"),
-    ("1:00 - 1:30\n(30秒)", "定量投入\n判定保留", "知多精機のExcelを投入。DDFが『長期借入金はあるが1年内返済区分なし』と赤字警告を出す。", "「中小企業の決算書には手抜きや欠落が多発します。DiaDocは鵜呑みにせず、資金判定を即座に『保留』とし、証拠の開示を逆請求します」"),
-    ("1:30 - 1:55\n(25秒)", "支援担当者介入\n確定", "突合画面で支援担当者が返済予定表に基づき年10,000千円を入力。簡易営業CF 8,000千円に対し年間2,000千円の資金不足確定。", "「支援担当者が返済予定表を確認し数値を確定。この瞬間、年200万円の真の資金ショートが確定し、緊急トリアージが始まります」"),
-    ("1:55 - 2:30\n(35秒)", "定性投入\n激論・減額", "定性調査メモを投入。Growthの年2,400千円削減案に対し、Rebuildが工場長メモを引用して反論。審判が1,000千円へ減額採択！", "「現場メモを投入するとAIが激論。Growthの改善策に、Rebuildが『工場長が反発している』と牙を剥く。審判は客観的リスクを認め減額採択します！」"),
-    ("2:30 - 3:00\n(30秒)", "一括調達\n決着と統治", "遊休資材置場売却（8,000千円）で薄緑バナーへ転換。NotebookLM思想のレポート出力と第3のルート解説。", "「不足分は遊休地売却で補填し、完全合意。監査調書レポートが一撃で出力されます。機密データを中間SaaSに預けない第3のルートで守秘義務を死守します」")
-]
 
-for row_data in timeline_data:
-    row_cells = tbl_t.add_row().cells
-    for col_idx, text in enumerate(row_data):
-        row_cells[col_idx].text = text
-        p = row_cells[col_idx].paragraphs[0]
-        p.runs[0].font.name, p.runs[0].font.size = "Yu Gothic", Pt(9)
-        row_cells[col_idx]._tc.get_or_add_tcPr().append(parse_xml(r'''<w:tcBorders {}><w:top w:val="single" w:sz="4" w:space="0" w:color="D9D9D9"/><w:left w:val="single" w:sz="4" w:space="0" w:color="D9D9D9"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="D9D9D9"/><w:right w:val="single" w:sz="4" w:space="0" w:color="D9D9D9"/></w:tcBorders>'''.format(nsdecls('w'))))
+def bullets(items):
+    for it in items:
+        par = doc.add_paragraph(style="List Bullet")
+        run(par, it, 10.5)
+
+
+def table(headers, rows, widths=None):
+    tbl = doc.add_table(rows=1, cols=len(headers))
+    tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+    tbl.style = "Table Grid"
+    tbl.autofit = False
+    for i, h in enumerate(headers):
+        cell = tbl.rows[0].cells[i]
+        cell.text = ""
+        cell._tc.get_or_add_tcPr().append(parse_xml(r'<w:shd {} w:fill="1F497D"/>'.format(nsdecls('w'))))
+        run(cell.paragraphs[0], h, 9, True, RGBColor(255, 255, 255))
+    for row in rows:
+        cells = tbl.add_row().cells
+        for i, text in enumerate(row):
+            cells[i].text = ""
+            run(cells[i].paragraphs[0], text, 9)
+    if widths:
+        for i, w in enumerate(widths):
+            tbl.columns[i].width = Inches(w)
+        for row in tbl.rows:
+            for i, w in enumerate(widths):
+                row.cells[i].width = Inches(w)
+
+
+par = doc.add_paragraph()
+par.alignment = WD_ALIGN_PARAGRAPH.CENTER
+run(par, "DiaDoc デモ動画シナリオ（3分）", 20, True, COLOR_NAVY)
+par = doc.add_paragraph()
+par.alignment = WD_ALIGN_PARAGRAPH.CENTER
+par.paragraph_format.space_after = Pt(16)
+run(par, "知多精機株式会社〔愛知県知多郡南知多町豊浜〕編（架空のケース）", 11, False, COLOR_GRAY)
+
+heading("要約")
+body("この動画は、一つの会社の診断を最初から最後まで追う。筋は一本で、「資料が増えるたびに、診断が動く」。"
+     "決算書だけでは資金の判定を保留し、返済予定表で不足が確定し、現場のメモで議論の中身が変わり、反論で提案が減額され、報告書になる。"
+     "伝えることは一つ：計算と、発言を採用するかどうかの判定はプログラムが行い、AIは資料を読み、議論する。判断に必要な資料がなければ、答えずに止まる。")
+
+heading("1. このケースについて")
+body("知多精機株式会社は、デモ用に作った架空の会社である。メインバンクの豊浜信用金庫も架空である。"
+     "製造業の現場でよくある悩み（借入金の返済区分が決算書にない、段取り替えの非効率、現場の反発）を組み合わせて、数字も文章も新しく作った。"
+     "実在の会社・教材の数字や文章は使っていない。")
+table(["数字", "額（千円）", "出どころ"], [
+    ("売上高（第24期）", "242,000", "損益計算書"),
+    ("簡易営業CF", "8,000", "経常利益 3,800 − 法人税等 1,000 ＋ 減価償却費 5,200（製造 4,400＋販管 800）"),
+    ("年間の約定返済額", "10,000", "借入金返済予定表（決算書には1年内返済の区分がない）"),
+    ("返済後の資金収支", "△2,000", "8,000 − 10,000。毎年 2,000千円（200万円）の不足"),
+    ("段取り標準化による労務費の削減", "2,400 → 初年度 1,000", "ヒアリングメモ 3（若手の提案と、工場長の反対）"),
+    ("B社向け追加受注の限界利益", "1,500", "ヒアリングメモ 4"),
+    ("旧第2資材置場の売却", "8,000〜10,000（一回限り）", "ヒアリングメモ 5"),
+], widths=[2.1, 1.5, 2.9])
+
+heading("2. 3分の構成")
+table(["時間", "場面", "画面の操作", "ナレーション"], [
+    ("0:00〜0:20", "何をするアプリか",
+     "決算書（Excel）を資料ドックに入れる。検算が通り「適格」と出る。",
+     "「DiaDocは、中小企業の決算書から、会社のお金が足りるかを診断するアプリです。まず決算書を入れます。足し算が合っているかは、AIではなくプログラムが検算します」"),
+    ("0:20〜0:50", "判定保留",
+     "右の欄の残余月数が「判定保留」。宿題に「【必須】借入金返済予定表」が出る。",
+     "「借入金が9,000万円あるのに、決算書には毎年の返済額が書かれていません。DiaDocは返済ゼロとして『資金は十分』とは答えません。判定を保留し、返済予定表を請求します」"),
+    ("0:50〜1:15", "支援担当者による確定",
+     "返済予定表を確かめ、「支援担当者による確定」に年10,000千円と根拠を入れる。不足 年2,000千円が出る。",
+     "「支援担当者が返済予定表を確かめ、年1,000万円と確定します。根拠のない入力は受け付けません。この瞬間、毎年200万円の不足が数字で確定します」"),
+    ("1:15〜1:45", "現場のメモで議論が変わる",
+     "ヒアリングメモを追加して「次のラウンドへ」。Growth が段取り標準化（年2,400千円）を、メモを根拠に提案する。",
+     "「ここで現場のヒアリングメモを入れます。提案に足場ができます。段取り替えを45分から20分に縮めれば、残業代が年240万円減る、という提案です」"),
+    ("1:45〜2:15", "反論と減額採択",
+     "Rebuild が工場長の反対（精度への懸念、検証に4〜6か月）を引いて反論。プログラムが提案を 1,000千円に減額して数える。発言の下の「根拠と審査」を開く。",
+     "「反対する役のAIが、同じメモから工場長の反対を引きます。初年度に見込めるのは100万円。反論が審査を通ると、プログラムは提案を満額では数えません」"),
+    ("2:15〜2:45", "結論と報告書",
+     "結論のカード。「レポートを保存」「診断経緯の文章化」。要約と、金融機関提出用の文章を映す。",
+     "「議論が閉じると、結論と、そこに至った経緯が報告書になります。数字はすべて記録と照合しています」"),
+    ("2:45〜3:00", "全体を引きで",
+     "画面全体。終わりのカード（公開URL）。",
+     "「計算と判定はプログラム。AIは読み、議論する。最後に決めるのは人です。DiaDocでした」"),
+], widths=[0.8, 1.1, 2.3, 2.3])
+
+heading("3. 撮影の前に決めること")
+bullets([
+    "本番の Gemini は、押すたびに発言が変わる。ナレーションは、撮れた議論に合わせて最後に確定する。上の表の金額（2,400→1,000 など）は、メモに書いてある数字で、発言がそのとおりになるとは限らない",
+    "議論がどう閉じるかも回によって違う（改善策で不足を埋めて決着／埋まらずに道の選択へ／上限で要追加検討）。何度か通して、筋がいちばん伝わる回を使う",
+    "一手の待ち時間（7〜20秒）は編集で詰める。画面の動き（数字が変わる、差し戻しの印、結論のカード）は切らない",
+    "遊休地の売却（一回限りの資金）が出た回なら、「毎年続く改善」と「一度きりのお金」を分けて数えることを一言添える",
+])
+
+heading("4. 言わないこと")
+bullets([
+    "「不足が出たのでトリアージが始まる」：不足が出ただけでは、道の選択（トリアージ）には入らない。改善策を尽くしても届かないときだけ",
+    "「計算は1円もAIに任せない」：決算書の読み取りは Gemini が行う。言うなら「検算と判定はプログラムが行う」",
+    "アプリにない仕組みの話（外部サービスの名前、守秘の方式など）",
+    "会社を患者に、AIを医師に置き換えるたとえ話",
+])
+
+heading("5. 投入する資料と順番")
+table(["順番", "ファイル", "入れ方"], [
+    ("1", "Chita_Seiki_Financials_2Periods.xlsx", "資料ドック → 財務書類として投入（新しい会社の第1次分析に入る）"),
+    ("2", "Chita_Seiki_Loan_Repayment_Schedule.md", "投入しない。画面の外で確かめ、「支援担当者による確定」に年10,000千円と根拠を入れる"),
+    ("3", "Chita_Seiki_Qualitative_Interview_Memo.md", "資料ドック → 定性資料として追加（青いボタンを押すまでが投入）"),
+], widths=[0.6, 2.9, 3.0])
+
+hp = doc.sections[0].header.paragraphs[0]
+run(hp, "DiaDoc デモ動画シナリオ（3分）　知多精機株式会社編（架空のケース）", 9)
+fp = doc.sections[0].footer.paragraphs[0]
+fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+fr = run(fp, "", 10)
+for tag, text in (("begin", None), (None, "PAGE"), ("end", None)):
+    el = OxmlElement("w:fldChar") if tag else OxmlElement("w:instrText")
+    if tag:
+        el.set(qn("w:fldCharType"), tag)
+    else:
+        el.text = text
+    fr._r.append(el)
 
 doc.save("Chita_Seiki_Dynamism_Scenario.docx")
 print("Saved Chita_Seiki_Dynamism_Scenario.docx")
