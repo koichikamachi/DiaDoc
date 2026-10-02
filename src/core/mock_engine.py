@@ -307,7 +307,7 @@ def ensure_debt_request(run: Run) -> dict | None:
     requests = run.read("data_requests.json", [])
     cur = next((r for r in requests if r.get("kind") == "debt_schedule"), None)
     if base.debt_unverified:
-        if cur is not None and cur["status"] == "解消" and cur.get("resolved_how") == "人間が確定":
+        if cur is not None and cur["status"] == "解消" and cur.get("resolved_how") in ("支援担当者が確定", "人間が確定"):   # 後者は呼称を改める前の記録
             cur["status"] = "請求中"   # 確定を取り消したら、宿題に戻す
             cur.pop("resolved_by", None)
             cur.pop("resolved_how", None)
@@ -322,8 +322,8 @@ def ensure_debt_request(run: Run) -> dict | None:
     if cur is not None and cur["status"] != "解消":
         cur["status"] = "解消"
         if confirmed is not None:
-            cur["resolved_how"] = "人間が確定"
-            cur["resolved_by"] = [{"key": "repayment", "label": "年間約定返済額（人間が返済予定表で確定）",
+            cur["resolved_how"] = "支援担当者が確定"
+            cur["resolved_by"] = [{"key": "repayment", "label": "年間約定返済額（支援担当者が返済予定表で確定）",
                                    "cur": confirmed.amount, "source": {"file": confirmed.basis, "page": None}}]
         else:
             keys = KIND_KEYS["debt_schedule"]
@@ -434,7 +434,7 @@ def approve_rounding(run: Run, file: str) -> str:
     x["financials"] = fin.model_dump()
     run.write(rec_path, x)
     lines = [f"{a.check}（{'当期' if a.period == 'cur' else '前期'}）{a.amount:+,} → {a.booked_to}" for a in fin.rounding_adjustments]
-    entry = {"at": at, "actor": "人間（ライム）", "action": f"DDF条件付き適格を承認（未解明差異 {m.total_diff_thousand:,.0f}千円）",
+    entry = {"at": at, "actor": "支援担当者", "action": f"DDF条件付き適格を承認（未解明差異 {m.total_diff_thousand:,.0f}千円）",
              "file": file,
              "total_diff_thousand": m.total_diff_thousand, "headline": m.headline(), "entries": lines}
     run.write("audit_log.json", run.read("audit_log.json", []) + [entry])
@@ -455,7 +455,7 @@ def choose_replace(run: Run, file: str) -> str:
     x["gate"] = "差し替え待ち"
     run.write(rec_path, x)
     run.write("audit_log.json", run.read("audit_log.json", []) + [
-        {"at": now_iso(), "actor": "人間（ライム）", "action": "財務諸表の差し替えを選択（未解明差異は承認しない）", "file": file}])
+        {"at": now_iso(), "actor": "支援担当者", "action": "財務諸表の差し替えを選択（未解明差異は承認しない）", "file": file}])
     return "この資料は採用しません。訂正した財務諸表を投入してください。"
 
 
@@ -529,7 +529,7 @@ def withdraw_input(run: Run, filename: str) -> str:
 
     title = path.stem
     run.write("audit_log.json", run.read("audit_log.json", []) + [
-        {"at": at, "actor": "人間（ライム）", "action": "投入資料の取り下げ", "file": path.name,
+        {"at": at, "actor": "支援担当者", "action": "投入資料の取り下げ", "file": path.name,
          "entries": [f"保管先：{WITHDRAWN_DIR}/{stamp_}_{path.name}（削除せず保管）"]
                     + ([f"データ請求 {'・'.join(reverted)} の受領を取り消し"] if reverted else [])}])
     run.write("debate_log.json", run.read("debate_log.json", []) + [

@@ -257,10 +257,10 @@ def _real_bs_lines(ctx: DebateContext) -> list[str]:
              f"- 総資産 {nom['総資産']:,} → {real['総資産']:,}　純資産 {nom['純資産']:,} → {real['純資産']:,}"
              f"　自己資本比率 {nom['自己資本比率']:.1%} → {real['自己資本比率']:.1%}"]
     if adj:
-        lines += [f"- 調整［{'決算書の開示から' if a.origin == '開示' else '人間の介入'}］{a.describe()}" for a in adj]
+        lines += [f"- 調整［{'決算書の開示から' if a.origin == '開示' else '支援担当者の介入'}］{a.describe()}" for a in adj]
     else:
         lines.append("- 調整なし。株式・土地などは取得原価で計上されている前提（含み損益は外からは分からない）")
-    lines.append("- 人間が入れた調整は、以後の議論の前提として扱う。調整は資金（キャッシュ）の計算を変えない")
+    lines.append("- 支援担当者が入れた調整は、以後の議論の前提として扱う。調整は資金（キャッシュ）の計算を変えない")
     return lines + [""]
 
 
@@ -392,8 +392,8 @@ class Agent:
             for m in pending:
                 to_me = m.addressee == self.id
                 lines.append(f"- {'【あなた宛て】' if to_me else ''}{m.text}（{m.id}）")
-            head = ("\n\n# 人間（ライム）からの介入：まずこれに答える\n" + "\n".join(lines) +
-                    "\n人間の指摘・質問・条件には、発言の冒頭で直接答える。同意するなら条件と数字で、反論するなら根拠で答える。"
+            head = ("\n\n# 支援担当者からの介入：まずこれに答える\n" + "\n".join(lines) +
+                    "\n支援担当者の指摘・質問・条件には、発言の冒頭で直接答える。同意するなら条件と数字で、反論するなら根拠で答える。"
                     "指摘によって数字や時期が変わるなら、因果ブリッジも改める。あなたの段階の規律（使えない語など）は変わらない。")
         return context_text(state, ctx) + head + "\n\n# あなたへの指示\n" + self.task(state, ctx)
 

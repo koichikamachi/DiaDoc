@@ -51,7 +51,7 @@ def build(state, mission: str | None = None) -> list[TreeNode]:
     # 採択の記録（「採択：」で始まる人間の発言）は前提ではなく結論なので、道の枝の側に出す
     humans = [m for m in state.messages if m.speaker == "human" and not m.text.startswith("採択：")]
     if humans:
-        nodes.append(TreeNode("H", ["root"], "premise", "人間が置いた前提", "前提",
+        nodes.append(TreeNode("H", ["root"], "premise", "支援担当者が置いた前提", "前提",
                               [f"{m.id}：{m.text[:30]}{'…' if len(m.text) > 30 else ''}" for m in humans[-3:]]
                               + ([f"ほか{len(humans) - 3}件"] if len(humans) > 3 else [])))
 

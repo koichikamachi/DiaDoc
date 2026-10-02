@@ -208,7 +208,7 @@ def _render_repayment(fin: Financials, run, session) -> None:
     doubt = metrics.cash_base(fin).debt_unverified   # 確定の前に、書類だけで確かめられないもの
     if not doubt and cur is None:
         return
-    st.markdown("##### 約定返済額の確定（年間返済額の手動入力）")
+    st.markdown("##### 支援担当者による確定（Human / Advisor Override）：年間の約定返済額")
     if doubt:
         st.caption("決算書から約定返済を確かめられません（" + "・".join(doubt) + "）。資金不足の有無は判定保留です。"
                    "返済予定表（金銭消費貸借契約書）で確かめた年間の約定返済額を入れると、資金の監視をその額で計算し直し、"
@@ -225,11 +225,11 @@ def _render_repayment(fin: Financials, run, session) -> None:
     if run is None or run.frozen:
         return
     with st.form("repay_form", clear_on_submit=True, border=True):
-        st.markdown("**約定返済額を確定する（介入）**" if cur is None else "**確定額を入れ直す（介入）**")
+        st.markdown("**約定返済額を確定する（支援担当者介入）**" if cur is None else "**確定額を入れ直す（支援担当者介入）**")
         amount = st.number_input("年間約定返済額（千円。長期借入金・社債・リース債務の1年分の合計）", min_value=0,
                                  step=100, value=0, key="repay_amount")
         basis = st.text_input("根拠（例：〇〇銀行・△△信金の返済予定表を確認。毎月元金 834千円）", key="repay_basis")
-        if st.form_submit_button("約定返済額を確定して論争に伝える", type="primary"):
+        if st.form_submit_button("支援担当者として確定", type="primary"):
             try:
                 rec = repayment.confirm(run, int(amount), basis)
             except ValueError as e:

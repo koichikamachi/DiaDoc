@@ -355,7 +355,7 @@ def test_split_rule_applies_only_to_sga_detail_accounts():
 
 
 def test_manufacturing_row_is_not_mapped_to_sga_account():
-    """臨床テスト（知多精機）：製造原価報告書の法定福利費が販管費の法定福利費に入り、販管費合計が狂った。"""
+    """臨床テスト（知多精機・架空）：製造原価報告書の法定福利費が販管費の法定福利費に入り、販管費合計が狂った。"""
     ex = Extraction(document_type="財務諸表", unit="千円", items=[
         # 区分名だけでは表が分からず、シート名（page）で製造原価と分かる行
         ExtractedItem(key="sga_welfare_legal", source_label="法定福利費", prev=9300, cur=9750,

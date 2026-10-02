@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from schema import MAX_AMOUNT, stamp
 
 FILE = "repayment.json"
-ACTOR = "人間（ライム）"
+ACTOR = "支援担当者"
 
 
 class Repayment(BaseModel):

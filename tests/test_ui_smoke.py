@@ -297,7 +297,7 @@ def test_minor_difference_offers_two_choices_and_adjusts(data):
     next(b for b in at.button if b.label == ok).click().run()
     assert not at.exception, at.exception
     assert latest_run(company).financials() is not None
-    assert "人間（ライム）：DDF条件付き適格を承認（未解明差異 300千円）" in _texts(at)   # 監査証跡に出る
+    assert "支援担当者：DDF条件付き適格を承認（未解明差異 300千円）" in _texts(at)   # 監査証跡に出る
     assert any("未解明差異（DM未満）" in i.value for i in at.info)      # 検算の欄にも明示される
 
 

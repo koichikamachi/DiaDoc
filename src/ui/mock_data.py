@@ -9,7 +9,7 @@ AGENTS = {
     "growth": {"name": "Prof. Growth", "role": "成長派", "avatar": ":material/trending_up:", "color": "green"},
     "radar": {"name": "Analyst Radar", "role": "調査派", "avatar": ":material/radar:", "color": "blue"},
     "judge": {"name": "Moderator Judge", "role": "調停", "avatar": ":material/gavel:", "color": "violet"},
-    "human": {"name": "ライム", "role": "操作者", "avatar": ":material/person:", "color": "orange"},
+    "human": {"name": "支援担当者", "role": "操作者", "avatar": ":material/person:", "color": "orange"},
 }
 
 # 審判の判定（台本上の審理結果）

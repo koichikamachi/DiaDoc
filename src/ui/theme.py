@@ -107,6 +107,10 @@ def inject() -> None:
 .dd-prop:first-child {{ border-top:none; }}
 .dd-prop-title {{ font-weight:700; margin:.2rem 0 .05rem; white-space:normal; overflow-wrap:anywhere; line-height:1.4; }}
 .dd-more {{ margin-top:.2rem; font-size:.8rem; color:var(--dd-ink2); }}
+/* 公開デモの入口の案内（はじめての方へ）。最初に読む文章なので、見出しも本文も大きめにする */
+.st-key-demo-guide summary p {{ font-size:1.3rem !important; font-weight:800 !important; }}
+.st-key-demo-guide [data-testid="stExpanderDetails"] p,
+.st-key-demo-guide [data-testid="stExpanderDetails"] li {{ font-size:1.1rem !important; line-height:1.8 !important; }}
 .dd-more summary {{ cursor:pointer; color:var(--dd-accent); font-weight:700; }}
 .dd-more div {{ margin-top:.25rem; line-height:1.5; color:var(--dd-ink); }}
 .dd-sub {{ font-size:.78rem; color:var(--dd-ink2); font-variant-numeric:tabular-nums; }}

@@ -350,7 +350,7 @@ def report_markdown(run) -> str:
         runs_, shots_ = _counted_measures(state) if state is not None else ([], [])
         lv = "／".join(m.levers_tried) if m and m.levers_tried else "なし"
         if base.debt_confirmed:
-            repay = f"約定返済 年{base.debt_service:,}千円（人間が返済予定表で確定）"
+            repay = f"約定返済 年{base.debt_service:,}千円（支援担当者が返済予定表で確定）"
         elif base.debt_unverified:
             repay = "約定返済は決算書から確かめられない（BS記載に疑問あり、確認が必要）"
         else:
@@ -391,13 +391,13 @@ def report_markdown(run) -> str:
                   f"{_clip(judge[-1].judge_note.summary, 400)}", ""]
 
     # 2. 前提条件と監査的オーバーライド ---------------------------------------
-    L += ["## 2. 前提条件と監査的オーバーライド（人間介入）", ""]
+    L += ["## 2. 前提条件と支援担当者による確定（Human-in-the-Loop）", ""]
     if fin is not None:
         auto = [a for a in real_adjustments(fin) if a.origin == "開示"] if not _raises(real_adjustments, fin) else []
         adj = adjust.load(run)
         L.append("- **実質化の調整（B/S時価修正。資金の計算は変えない）**：" + ("なし" if not (auto or adj) else ""))
         L += [f"  - 〔決算書の開示から自動〕{a.describe()}" for a in auto]
-        L += [f"  - 〔人間 {a.id}〕{a.describe()}" + (f"　入力：{a.at}" if a.at else "") for a in adj]
+        L += [f"  - 〔支援担当者 {a.id}〕{a.describe()}" + (f"　入力：{a.at}" if a.at else "") for a in adj]
         rp = repayment.load(run)
         if rp is not None:
             L.append(f"- **約定返済額の確定**：{rp.describe()}　確定日時：{rp.at}"
@@ -412,7 +412,7 @@ def report_markdown(run) -> str:
                      + "、".join(f"{a.check} {a.amount:+,}（{a.booked_to}）" for a in fin.rounding_adjustments))
     humans = [x for x in (state.messages if state else []) if x.speaker == "human"]
     if humans:
-        L.append("- **論争への介入（ライム）**：")
+        L.append("- **論争への介入（支援担当者）**：")
         L += [f"  - 第{x.round}ラウンド：{_clip(x.text, 160)}" for x in humans]
     if cons.get("constraints"):
         L.append("- **制約・前提条件**：" + "／".join(cons["constraints"]))
@@ -491,7 +491,7 @@ def report_markdown(run) -> str:
     if tree.get("nodes"):
         L += ["- （参考）旧・静的分析のシナリオ採否：",
               *[f"  - {n['id']} {n['label']}：{n['status']}　— {n['reason']}（{n['source']}）" for n in tree["nodes"]]]
-    L += ["", "---", "このレポートは DiaDoc が回次の記録（読み取った財務データ、論争の判定、人間の介入、データ請求）から"
+    L += ["", "---", "このレポートは DiaDoc が回次の記録（読み取った財務データ、論争の判定、支援担当者の介入、データ請求）から"
           "プログラムで組み立てたものである。判定と数字はプログラムの計算による。"]
     return "\n".join(x for x in L if x is not None) + "\n"
 

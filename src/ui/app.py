@@ -132,9 +132,10 @@ GUIDE = """**このアプリがすること**　決算書を入れると、4人�
 
 def _demo_guide(state) -> None:
     """公開デモの入口の案内。論争が始まる前は開いておき、始まったら畳む（いつでも開ける）。"""
-    with st.expander("はじめての方へ：3分で試す手順", icon=":material/waving_hand:",
-                     expanded=state is None or not state.messages):
-        st.markdown(GUIDE)
+    with st.container(key="demo-guide"):     # 文字の大きさは theme.py の .st-key-demo-guide
+        with st.expander("はじめての方へ：3分で試す手順", icon=":material/waving_hand:",
+                         expanded=state is None or not state.messages):
+            st.markdown(GUIDE)
 
 
 def _on_new_run() -> None:

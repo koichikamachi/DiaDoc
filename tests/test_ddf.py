@@ -75,7 +75,7 @@ def test_small_difference_is_conditionally_fit_and_needs_a_human(data):
     assert "条件付き適格" in added[-1]["text"] and run.financials() is None
     approve_rounding(run, "丁.xlsx")
     log = run.read("audit_log.json")[-1]
-    assert f"{log['actor']}：{log['action']}" == "人間（ライム）：DDF条件付き適格を承認（未解明差異 300千円）"
+    assert f"{log['actor']}：{log['action']}" == "支援担当者：DDF条件付き適格を承認（未解明差異 300千円）"
     assert run.financials().rounding_adjustments[0].booked_to == "雑損益（未解明差異）"
     assert "- **診断適格性（DDF）**：条件付き適格（Conditionally Fit）：未解明差異 300千円を承認済み" in report_markdown(run)
 

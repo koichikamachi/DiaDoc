@@ -61,7 +61,7 @@ class Extractor(Protocol):
     def extract(self, filename: str, content: bytes) -> Extraction: ...
 
 
-PROMPT = """あなたは公認会計士の補助者として、決算書類から数値を書き写す係です。判断や推測はしません。
+PROMPT = """あなたは経営診断の専門支援担当者の補助者として、決算書類から数値を書き写す係です。判断や推測はしません。
 
 次の資料から、下の「標準科目一覧」に当てはまる科目の金額を抽出し、指定のJSON形式で出力してください。
 

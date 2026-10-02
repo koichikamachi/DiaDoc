@@ -16,7 +16,7 @@ PROFILES = {
                "icon": ":material/trending_up:", "glyph": "▲", "light": "#1baf7a", "dark": "#199e70"},
     "judge": {"name": "Moderator Judge", "title": "案件統括・進行裁定", "duty": "ディレクター",
               "icon": ":material/gavel:", "glyph": "§", "light": "#52514e", "dark": "#c3c2b7"},
-    "human": {"name": "ライム", "title": "人間介入", "duty": "操作者",
+    "human": {"name": "支援担当者", "title": "支援担当者介入", "duty": "操作者",
               "icon": ":material/person:", "glyph": "●", "light": "#52514e", "dark": "#c3c2b7"},
 }
 TEAM = ("rebuild", "growth", "radar", "judge")

@@ -1,4 +1,4 @@
-"""人間の介入（ライム）。止まっている論争に、コメントや追加資料の要点を書き込む。
+"""支援担当者の介入。止まっている論争に、コメントや追加資料の要点を書き込む。
 
 介入は発言として積むが、審判の審理や膠着の計算には入れない（人間の言葉は論争の当事者の主張ではなく条件である）。
 各エージェントは次の手から、文脈の中でこの介入を読む。
@@ -33,7 +33,7 @@ def intervene(session: DebateSession, text: str, sources: list[SourceRef] | None
     if not session.started:
         session.start()
     if session.finished:   # 閉じた後の介入は、論争を再開してから書き込む（新しい条件で審理し直す）
-        session.reopen("人間の介入")
+        session.reopen("支援担当者の介入")
     st = session.state()
     if attach_name and attach_text:
         saved = session.run.save_input(f"{attach_name}.md", attach_text.encode("utf-8"))

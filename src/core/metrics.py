@@ -272,8 +272,8 @@ def cash_base(fin: Financials, repayment=None) -> CashBase:
             unverified.append(f"{label} {bal:,}千円に1年内返済の区分がない")
             unverified_total += bal
     confirmed = ""
-    if repayment is not None:   # 人間が返済予定表で確定した年間の約定返済（core.repayment）。書類から求めた額に代えて使う
-        confirmed = (f"約定返済＝{repayment.amount:,}（人間が返済予定表で確定：{repayment.basis}。"
+    if repayment is not None:   # 支援担当者が返済予定表で確定した年間の約定返済（core.repayment）。書類から求めた額に代えて使う
+        confirmed = (f"約定返済＝{repayment.amount:,}（支援担当者が返済予定表で確定：{repayment.basis}。"
                      f"書類から求めた額{debt:,}に代えて使う）")
         debt, unverified, unverified_total = repayment.amount, [], 0
 

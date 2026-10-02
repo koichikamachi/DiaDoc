@@ -75,7 +75,7 @@ class RoundingAdjustment(BaseModel):
     period: str                 # prev / cur
     amount: int                 # 計算値 + amount ＝ 報告値（表示単位）
     booked_to: str
-    approved_by: str = "人間（ライム）"
+    approved_by: str = "支援担当者"
     approved_at: str = ""
     file: str = ""
 
@@ -352,7 +352,7 @@ class CashBase(BaseModel):
     debt_unverified: list[str] = Field(default_factory=list)
     ref_debt_service: int | None = None   # 参考試算：確かめられない残高を10年均等で返すと仮定した年間の返済（既知の返済を含む）
     ref_free_cf: int | None = None        # 参考試算：そのときの返済後の資金収支（年）
-    debt_confirmed: str = ""              # 人間が返済予定表で確定した約定返済（core.repayment）の説明。確定していなければ空
+    debt_confirmed: str = ""              # 支援担当者が返済予定表で確定した約定返済（core.repayment）の説明。確定していなければ空
 
     @property
     def complete(self) -> bool:
@@ -420,7 +420,7 @@ class JudgeNote(BaseModel):
     one_time: int = 0                                       # 一括調達（一時的資金）：資産売却などの一回限りの資金
     pending: str = ""                                       # 資金不足の有無を判定保留にしている理由（なければ空）
     reference: str = ""                                     # 判定保留のときの参考試算
-    confirmed: str = ""                                     # 人間が返済予定表で確定した約定返済（あれば）
+    confirmed: str = ""                                     # 支援担当者が返済予定表で確定した約定返済（あれば）
     summary: str = ""                                       # Judge（LLM）の論点整理
     decision: PhaseDecision | None = None
     closing: str = ""                                       # 論争を閉じるときの一文

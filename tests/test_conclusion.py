@@ -139,7 +139,7 @@ def test_no_banner_while_the_debate_is_running():
 # ---------------------------------------------------------------------------
 # 3. 診断レポート
 # ---------------------------------------------------------------------------
-SECTIONS = ("## 1. エグゼクティブサマリー", "## 2. 前提条件と監査的オーバーライド（人間介入）",
+SECTIONS = ("## 1. エグゼクティブサマリー", "## 2. 前提条件と支援担当者による確定（Human-in-the-Loop）",
             "## 3. 採択された改善シナリオ一覧", "## 4. 残されたリスク・未決争点", "## 5. データ請求（宿題リスト）")
 
 
@@ -171,10 +171,10 @@ def test_report_lists_overrides_and_resolved_homework(data):
     repayment.confirm(run, 6_000, "〇〇銀行の返済予定表を確認")
     ensure_debt_request(run)
     md = report_markdown(run)
-    assert "〔人間 A1〕土地 +100,000千円" in md and "近隣の相場を聞き取りした" in md
+    assert "〔支援担当者 A1〕土地 +100,000千円" in md and "近隣の相場を聞き取りした" in md
     assert "- **約定返済額の確定**：年間約定返済額 6,000千円（根拠：〇〇銀行の返済予定表を確認）" in md
     part = md[md.index("## 5."):]
-    assert "**解消済み**" in part and "【必須】借入金返済予定表：解消" in part and "証跡：年間約定返済額（人間が返済予定表で確定） 6,000" in part
+    assert "**解消済み**" in part and "【必須】借入金返済予定表：解消" in part and "証跡：年間約定返済額（支援担当者が返済予定表で確定） 6,000" in part
     assert "- **結論フェーズ**：未開始" in md
 
 

@@ -14,7 +14,7 @@ COLUMNS = ("round", "step", "speaker", "message", "proposal_action", "target_acc
            "lead_time_months", "judgement", "cash_runway", "accumulated_cf", "timestamp")
 
 SPEAKER_NAMES = {"radar": "Analyst Radar", "growth": "Prof. Growth", "rebuild": "Dr. Rebuild",
-                 "judge": "Moderator Judge", "human": "ライム（人間介入）"}
+                 "judge": "Moderator Judge", "human": "支援担当者"}
 
 
 def _runway(v: float | None, pending: bool = False) -> str:

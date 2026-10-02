@@ -380,7 +380,7 @@ class DebateSession:
             raise ValueError("再開できるのは、閉じた論争だけです")
         nxt_round = st.round + 1
         decision = PhaseDecision(round=st.round, current=st.phase, next="exploration", rule="reopened",
-                                 reason=f"人間の求めで論争を再開します（{reason}）。第{nxt_round}ラウンドから探索に戻ります",
+                                 reason=f"支援担当者の求めで論争を再開します（{reason}）。第{nxt_round}ラウンドから探索に戻ります",
                                  stop_reason=None)
         note = DebateMessage(at=stamp(), id=f"R{st.round}-judge-{len(st.messages) + 1}", round=st.round, phase=st.phase,
                              speaker="judge", action="裁定",

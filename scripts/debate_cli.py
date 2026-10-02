@@ -22,7 +22,7 @@ from core.graph import DebateSession  # noqa: E402
 from core.runs import latest_run  # noqa: E402
 
 NAMES = {"radar": "Analyst Radar", "growth": "Prof. Growth", "rebuild": "Dr. Rebuild", "judge": "Moderator Judge",
-         "human": "ライム（人間）"}
+         "human": "支援担当者"}
 
 
 def show(msgs, s: DebateSession) -> None:

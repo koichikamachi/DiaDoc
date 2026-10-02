@@ -184,9 +184,9 @@ def test_confirmed_repayment_lifts_the_pending_judgement(data):
     b = repayment.cash_base_for(run)
     assert not b.shortage_pending and not b.debt_unverified
     assert (b.debt_service, b.free_cf, b.required_cf) == (6_000, 630 - 6_000, 5_370)
-    assert "人間が返済予定表で確定" in b.debt_confirmed and any("〇〇銀行" in x for x in b.basis)
+    assert "支援担当者が返済予定表で確定" in b.debt_confirmed and any("〇〇銀行" in x for x in b.basis)
     log = run.read("audit_log.json")[-1]
-    assert log["actor"] == "人間（ライム）" and log["action"] == "約定返済額の確定（年間 6,000千円）"
+    assert log["actor"] == "支援担当者" and log["action"] == "約定返済額の確定（年間 6,000千円）"
     assert "約定返済額を確定します：年間約定返済額 6,000千円" in repayment.intervention_text(rec)
     assert run.financials().value("cltd") is None                                  # 決算書の数字は変えない
 
@@ -207,7 +207,7 @@ def test_confirmation_resolves_the_homework_and_withdrawal_reopens_it(data):
     run = _pending_run()
     repayment.confirm(run, 6_000, "返済予定表を確認")
     r = ensure_debt_request(run)
-    assert r["status"] == "解消" and r["resolved_how"] == "人間が確定" and r["resolved_by"][0]["cur"] == 6_000
+    assert r["status"] == "解消" and r["resolved_how"] == "支援担当者が確定" and r["resolved_by"][0]["cur"] == 6_000
     assert "- **約定返済額の確定**：年間約定返済額 6,000千円（根拠：返済予定表を確認）" in report_markdown(run)
     assert repayment.withdraw(run).amount == 6_000
     assert repayment.load(run) is None and repayment.cash_base_for(run).shortage_pending
@@ -226,7 +226,7 @@ def test_confirmed_repayment_drives_the_debate_monitor(data):
     s = DebateSession(latest_run(run.company))
     s.run_round()
     note = s.state().messages[-1].judge_note
-    assert not note.pending and note.required_cf == 5_370 and "人間が返済予定表で確定" in note.confirmed
+    assert not note.pending and note.required_cf == 5_370 and "支援担当者が返済予定表で確定" in note.confirmed
     assert "判定保留" not in s.state().messages[-1].text
 
 
@@ -240,9 +240,11 @@ def test_confirmation_from_the_matrix_screen(data):
     at = AppTest.from_file(str(ROOT / "src/ui/app.py"), default_timeout=30)
     at.run()
     at.selectbox(key="company").set_value(run.company).run()
+    texts = " ".join(m.value for m in at.markdown)
+    assert "支援担当者による確定（Human / Advisor Override）" in texts and "ライム" not in texts   # 個人名・士業名を出さない
     at.number_input(key="repay_amount").set_value(6_000)
     at.text_input(key="repay_basis").input("〇〇銀行の返済予定表を確認")
-    at.button(key="FormSubmitter:repay_form-約定返済額を確定して論争に伝える").click().run()
+    at.button(key="FormSubmitter:repay_form-支援担当者として確定").click().run()
     assert not at.exception, at.exception
     run = latest_run(run.company)
     assert repayment.load(run).amount == 6_000
@@ -262,3 +264,10 @@ def test_abstract_says_why_the_judgement_is_pending(data):
     head = md[md.index("## 要約"):md.index("## 1. エグゼクティブサマリー")]
     assert "丁工業" in head and "返済額が決算書から確かめられず" in head
     assert "借入金返済予定表の提出が必要である" in head
+
+
+def test_no_personal_or_profession_names_in_the_product():
+    """人間の介入・確定の主体は「支援担当者」。特定の個人名（ライム）・士業名（公認会計士）を画面・指示文・レポートに書かない。"""
+    hits = [f"{p}:{w}" for p in list((ROOT / "src").rglob("*.py")) + list((ROOT / "docs").rglob("*.md"))
+            for w in ("ライム", "公認会計士") if w in p.read_text(encoding="utf-8")]
+    assert hits == []

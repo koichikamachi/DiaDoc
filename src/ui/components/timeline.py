@@ -275,7 +275,7 @@ def render(session: DebateSession, frozen: bool) -> None:
             ph = PHASE[state.phase if state else "exploration"]
             who = PROFILES[nxt]["name"] if nxt else "—"
             rnd = f"第{state.round}ラウンド" if state else "開始前"
-            why = "（ライムの介入に回答）" if state and state.reply_to else ""
+            why = "（支援担当者の介入に回答）" if state and state.reply_to else ""
             st.markdown(f":{ph['color']}-badge[{ph['icon']} {ph['label']}]　{rnd}　次の発言：**{who}**{why}")
     pick_col.selectbox("次の発言者", list(picks), format_func=picks.get, key="next_pick",
                        disabled=not can_pick or no_data, label_visibility="collapsed",
@@ -341,7 +341,7 @@ def render(session: DebateSession, frozen: bool) -> None:
     if ss.pop("_reset_intervene_to", False) or ss.get("intervene_to") not in targets:
         ss.intervene_to = None
     with st.form("intervene", clear_on_submit=True, border=False):
-        text = st.text_area("人間介入（ライム）", placeholder="例：いきなり8%の削減は従業員の反発で難しいのでは？／遊休地の売却は地元の反対で難しい",
+        text = st.text_area("支援担当者介入", placeholder="例：いきなり8%の削減は従業員の反発で難しいのでは？／遊休地の売却は地元の反対で難しい",
                             height=80, disabled=frozen, key="intervene_text")
         c1, c2 = st.columns([1.3, 1], vertical_alignment="bottom")
         to = c1.selectbox("誰に答えさせるか", list(targets), format_func=targets.get, key="intervene_to",

@@ -117,7 +117,7 @@ def test_adjustment_reaches_the_debate_context(data):
     msg = intervene(s, adjust.intervention_text(a))
     assert msg.speaker == "human" and "実質化の調整" in msg.text
     text = context_text(s.state(), DebateContext.from_run(run))
-    assert "人間の介入］投資有価証券 +3,000千円" in text and "純資産 44,710 → 47,710" in text
+    assert "支援担当者の介入］投資有価証券 +3,000千円" in text and "純資産 44,710 → 47,710" in text
     s.close()
 
 
