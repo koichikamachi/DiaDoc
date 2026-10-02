@@ -23,6 +23,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# git の出力（コミットの題名など）は UTF-8。Windows PowerShell 5.1 の既定（Shift_JIS）のまま受け取ると、
+# 最後に表示する日本語の題名が文字化けするので、受け取る側を UTF-8 にそろえる
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $Root = Split-Path -Parent $PSScriptRoot
 $WorkTree = Join-Path (Split-Path -Parent $Root) "diadoc-deploy"
 

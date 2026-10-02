@@ -507,3 +507,19 @@ def test_archive_hides_a_company_without_deleting_its_records(data):
     at.button(key="unarchive_btn").click().run()
     meta = json.loads((company_dir(company) / "meta.json").read_text(encoding="utf-8"))
     assert meta["archived"] is False and [h["action"] for h in meta["archive_history"]] == ["アーカイブ", "戻す"]
+
+
+def test_public_demo_shows_the_guide_and_hides_management(data, monkeypatch):
+    """公開デモ：入口の案内を出し、管理の操作（名前の変更・アーカイブ）は出さない。手元では従来どおり。"""
+    at = _run()
+    assert not [m for m in at.markdown if "3分で試す" in m.value]
+    assert at.button(key="archive_btn") is not None
+    monkeypatch.setenv("DBD_SESSION_SANDBOX", "1")
+    monkeypatch.setenv("DBD_SANDBOX_ROOT", str(data))
+    at = _run()
+    assert not at.exception, at.exception
+    guide = [m.value for m in at.markdown if "3分で試す" in m.value]
+    assert guide and "C002" in guide[0] and "次のラウンドへ" in guide[0] and "このアプリがすること" in guide[0]
+    with pytest.raises(KeyError):
+        at.button(key="archive_btn")
+    assert not [t for t in at.toggle if t.key == "show_archived"]

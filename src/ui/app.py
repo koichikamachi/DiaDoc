@@ -89,6 +89,54 @@ def _on_archive(archived: bool) -> None:
                 if archived else "アーカイブから戻しました")
 
 
+def _is_demo() -> bool:
+    """公開デモ（Cloud Run。ブラウザごとの作業場所で動く）かどうか。"""
+    return os.environ.get("DBD_SESSION_SANDBOX") == "1"
+
+
+def _manage_company(cur: dict) -> None:
+    """対象会社の管理（名前の変更・アーカイブ）。サイドバーの中で呼ぶ。"""
+    ss = st.session_state
+    with st.popover("名前を変える", icon=":material/edit:", width="stretch"):
+        with st.form(f"rename_{ss.company}", clear_on_submit=False, border=False):
+            st.text_input("会社名", value=cur.get("name", ""), key=f"rn_name_{ss.company}")
+            st.checkbox("架空モデル（実在の会社ではない）", value=bool(cur.get("fictional")), key=f"rn_fictional_{ss.company}")
+            st.form_submit_button("変更する", type="primary", on_click=_on_rename_company)
+        if ss.get("rename_error"):
+            st.markdown(f":red[{ss.rename_error}]")
+        st.caption(f"会社のID（{cur.get('company_id') or ss.company.split('_', 1)[0]}）と、これまでの回次・論争・資料はそのままです。"
+                   "変える前の名前は記録に残ります")
+    if cur.get("archived"):
+        st.button("アーカイブから戻す", icon=":material/unarchive:", width="stretch", key="unarchive_btn",
+                  on_click=_on_archive, args=(False,))
+    else:
+        with st.popover("アーカイブ（一覧から外す）", icon=":material/archive:", width="stretch"):
+            st.caption("この会社を選択欄から外します。回次・論争・資料・監査証跡は消えず、いつでも戻せます")
+            st.button("アーカイブする", type="primary", key="archive_btn", on_click=_on_archive, args=(True,))
+    st.toggle("アーカイブも表示", key="show_archived")
+
+
+GUIDE = """**このアプリがすること**　決算書を入れると、4人のAIが議論して「会社のお金は足りるか。足りなければ何をすべきか」を答えます。
+計算と、発言を採用するかどうかの判定は、AIではなくプログラムが行います。判断に必要な資料がなければ、答えずに止まって資料を請求します。
+
+**3分で試す**
+1. 左の「対象企業」で **C002（架空の窮境企業）** を選びます
+2. 中央の **「⏩ 次のラウンドへ」** を押します。4人が順に発言し（30〜40秒）、右の欄で資金の数字が動きます
+3. 数回押すと、画面の上に結論のカードが出ます。左下の「レポートを保存」「診断経緯の文章化」で報告書になります
+
+**見どころ**　発言の下の「根拠と審査」を開くと、プログラムがその発言を通したか差し戻したかと、その理由が読めます。
+
+**言葉の意味**　残余月数＝いまの資金があと何か月もつか　／　差し戻し＝根拠か決着条件が足りず、採用されなかった発言　／
+トリアージ＝改善策では足りず、会社をどう残すかの道を選ぶ段階　／　回次＝資料を足して診断をやり直した回"""
+
+
+def _demo_guide(state) -> None:
+    """公開デモの入口の案内。論争が始まる前は開いておき、始まったら畳む（いつでも開ける）。"""
+    with st.expander("はじめての方へ：3分で試す手順", icon=":material/waving_hand:",
+                     expanded=state is None or not state.messages):
+        st.markdown(GUIDE)
+
+
 def _on_new_run() -> None:
     ss = st.session_state
     run = mock_engine.start_manual_run(ss.company)
@@ -125,23 +173,9 @@ def sidebar() -> tuple[Run, str]:
                 st.markdown(f":red[{ss.new_company_error}]")
             st.caption("第1次分析（未開始）が作られます。最初の財務書類は、次の回次を開かずに第1次分析に入ります")
         cur = next((c for c in companies if c["dir"] == ss.company), {})
-        with st.popover("名前を変える", icon=":material/edit:", width="stretch"):
-            with st.form(f"rename_{ss.company}", clear_on_submit=False, border=False):
-                st.text_input("会社名", value=cur.get("name", ""), key=f"rn_name_{ss.company}")
-                st.checkbox("架空モデル（実在の会社ではない）", value=bool(cur.get("fictional")), key=f"rn_fictional_{ss.company}")
-                st.form_submit_button("変更する", type="primary", on_click=_on_rename_company)
-            if ss.get("rename_error"):
-                st.markdown(f":red[{ss.rename_error}]")
-            st.caption(f"会社のID（{cur.get('company_id') or ss.company.split('_', 1)[0]}）と、これまでの回次・論争・資料はそのままです。"
-                       "変える前の名前は記録に残ります")
-        if cur.get("archived"):
-            st.button("アーカイブから戻す", icon=":material/unarchive:", width="stretch", key="unarchive_btn",
-                      on_click=_on_archive, args=(False,))
-        else:
-            with st.popover("アーカイブ（一覧から外す）", icon=":material/archive:", width="stretch"):
-                st.caption("この会社を選択欄から外します。回次・論争・資料・監査証跡は消えず、いつでも戻せます")
-                st.button("アーカイブする", type="primary", key="archive_btn", on_click=_on_archive, args=(True,))
-        st.toggle("アーカイブも表示", key="show_archived")
+        if not _is_demo():      # 公開デモでは管理の操作（名前の変更・アーカイブ）を出さない（審査員の画面を簡潔に保つ）
+            _manage_company(cur)
+
 
         runs = list_runs(ss.company)
         ids = [r.run_id for r in runs]
@@ -346,6 +380,8 @@ def main() -> None:
     state = session.state() if session.started else None
 
     _header(run, company, state, session.ctx.base if session.ctx.fin is not None else None)
+    if _is_demo():
+        _demo_guide(state)
     if company.get("fictional"):
         st.warning("**架空モデル**：実在の会社ではありません。資金ショート寸前の窮境企業として作った対比用のシナリオです。",
                    icon=":material/theater_comedy:")
