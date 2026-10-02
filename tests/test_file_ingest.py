@@ -354,6 +354,26 @@ def test_split_rule_applies_only_to_sga_detail_accounts():
     assert fin.items["sales"].cur is None  # 売上高を足し合わせたりはしない
 
 
+def test_manufacturing_row_is_not_mapped_to_sga_account():
+    """臨床テスト（知多精機）：製造原価報告書の法定福利費が販管費の法定福利費に入り、販管費合計が狂った。"""
+    ex = Extraction(document_type="財務諸表", unit="千円", items=[
+        # 区分名だけでは表が分からず、シート名（page）で製造原価と分かる行
+        ExtractedItem(key="sga_welfare_legal", source_label="法定福利費", prev=9300, cur=9750,
+                      page="製造原価報告書", section="労務費"),
+        ExtractedItem(key="unknown", source_label="法定福利費", cur=500, page="5", section="製造原価明細書"),
+        ExtractedItem(key="sga_lease", source_label="賃借料", cur=3600, page="損益計算書", section="販売費及び一般管理費"),
+        ExtractedItem(key="e_dep", source_label="減価償却費（販管）", cur=800, page="損益計算書",
+                      section="販売費及び一般管理費"),
+    ])
+    fin, rep = normalize(ex, "a.xlsx", COMPANY, "gemini:m")
+    assert "sga_welfare_legal" not in fin.items
+    assert "e_dep" not in fin.items        # 逆向き：販管費の行は製造原価の科目に入れない
+    assert fin.items["sga_lease"].cur == 3600
+    assert sum("製造原価の行は販管費の科目に当てない" in d for d in rep.dropped) == 2
+    assert any("販管費の行は製造原価の科目に当てない" in d for d in rep.dropped)
+    assert {v["cur"] for v in rep.dropped_values} == {9750, 500, 800}
+
+
 def test_prompt_asks_for_section_and_forbids_summing():
     client = FakeClient(_p100())
     GeminiExtractor(client=client, model="m").extract("a.pdf", b"%PDF")

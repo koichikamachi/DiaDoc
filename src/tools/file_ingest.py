@@ -327,6 +327,21 @@ def _coarse(statement_or_section: str | None) -> str | None:
     return None
 
 
+def _table_mismatch(it: ExtractedItem, key: str) -> str | None:
+    """行の属する表と標準科目の表が食い違うなら理由を返す（製造原価の行を販管費の科目に当てない。逆も同じ）。
+
+    行の表は section から、区分名だけで表が分からなければ page（Excel ではシート名）から決める。
+    """
+    st = sa.META[key][0]
+    sec = "".join((it.section or "").split())
+    table = _coarse(sec) or _coarse(it.page)
+    if st == "販管費内訳" and table == "製造原価":
+        return "製造原価の行は販管費の科目に当てない"
+    if st == "製造原価" and (_section_kind(sec) or "販管" in sec or "販売費及び一般管理費" in sec):
+        return "販管費の行は製造原価の科目に当てない"
+    return None
+
+
 def _composite_key(it: ExtractedItem) -> str | None:
     """「未払金・未払費用」のように「・」でまとめた行を、最初の科目の標準科目に寄せる（同じ種類の表の科目に限る）。"""
     label = it.source_label or ""
@@ -372,6 +387,12 @@ def normalize(ex: Extraction, filename: str, company_id: str, extractor: str) ->
                                            "cur": it.cur, "page": it.page})
                 continue
             remapped.append(f"{it.source_label} → {sa.LABELS[key]}{note}")
+        if (why := _table_mismatch(it, key)) is not None:   # 同名の科目でも表が違えば当てはめない（二重計上の防止）
+            dropped.append(f"{it.source_label}（key={key}、{why}）")
+            if it.cur is not None or it.prev is not None:
+                dropped_values.append({"label": it.source_label, "section": it.section, "prev": it.prev,
+                                       "cur": it.cur, "page": it.page})
+            continue
         if key in sa.POSITIVE_MAGNITUDE:
             for period in ("prev", "cur"):
                 v = getattr(it, period)
